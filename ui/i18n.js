@@ -1,0 +1,193 @@
+/* UI chrome i18n (EN and JA). Result content from Google stays in the SERP's
+   own language; only interface labels toggle. Flat key dictionary. */
+"use strict";
+
+const STRINGS = {
+  en: {
+    docTitle: "SERP KIT",
+    sub: "Google SERP collection and inspection",
+    preset: "Preset",
+    keyword: "Keyword",
+    keywordPh: "e.g. best pizza in new york",
+    pages: "Pages",
+    location: "Location",
+    locationPh: "Dhaka, Bangladesh or City,Region,Country",
+    advanced: "Options",
+    mock: "Mock mode (no browser)",
+    solve: "Solve CAPTCHAs (CapSolver)",
+    run: "Run scrape",
+    hProgress: "Progress",
+    pSession: "Preparing session",
+    pAutocomplete: "Autocomplete suggestions",
+    pOrganic: "Organic results",
+    pAi: "AI Overview",
+    pPaa: "People Also Ask",
+    pRelated: "Related searches and local pack",
+    pPages: "Remaining pages",
+    pMaps: "Google Maps",
+    pFinalize: "Finalizing",
+    stRunning: "Scraping: {0}",
+    stDone: (n, p, r) => `Done: ${n} organic, ${p} PAA, ${r} related`,
+    stPartial: (n, codes) => `Partial: ${n} organic, errors: ${codes}`,
+    stBlocked: "Blocked",
+    stNetErr: "Request failed: {0}",
+    timeout: "Timed out",
+    solvePrefix: "solve",
+    solvesLabel: (n) => `captcha solves x${n}`,
+    solverReady: "Solver ready",
+    solverOff: "Solver off",
+    solverTitle: (b) => `CapSolver${b != null ? `, balance ${b}` : ""}`,
+    session: "Session",
+    sessionNone: "No session",
+    tabOrganic: "Organic",
+    tabPaa: "PAA",
+    tabAi: "AI Overview",
+    tabRelated: "Related",
+    tabMaps: "Maps",
+    tabAuto: "Suggest",
+    tabRaw: "Raw JSON",
+    hOrganic: "Organic results",
+    hPaa: "People Also Ask",
+    hAi: "AI Overview",
+    hRelated: "Related searches",
+    hLocal: "Local pack",
+    hMaps: "Google Maps",
+    hAuto: "Autocomplete suggestions",
+    hRaw: "Raw JSON",
+    rawSub: "(JSON contract)",
+    copy: "Copy JSON",
+    copied: "Copied",
+    noSnippet: "Answer not captured",
+    openSource: "Open source",
+    emptyOrganic: "No organic results",
+    emptyPaa: "No questions captured",
+    emptyAi: "No AI Overview for this query",
+    emptyRelated: "No related searches",
+    emptyLocal: "No local pack (normal for non-local queries)",
+    emptyMaps: "No Maps results",
+    emptyAuto: "No suggestions",
+    errLabels: {
+      captcha_v2: "Google CAPTCHA (reCAPTCHA v2)",
+      captcha_image: "Google image CAPTCHA",
+      captcha_unknown: "Google challenge",
+      consent: "Consent wall",
+      js_required: "JavaScript required",
+      unusual_traffic: "Rate limited (no captcha widget)",
+      zero_result: "Selector drift (0 results)",
+      fetch_error: "Fetch error",
+      egress_policy_blocked: "Egress policy",
+      no_egress: "No egress proxy",
+      web_fallback_error: "Web-mode fallback error",
+      autocomplete_error: "Autocomplete error",
+      maps_error: "Maps error",
+      maps_zero_result: "Maps selector drift",
+    },
+  },
+  ja: {
+    docTitle: "SERP KIT",
+    sub: "Google SERP の収集と確認",
+    preset: "プリセット",
+    keyword: "キーワード",
+    keywordPh: "例： 新宿 ラーメン おすすめ",
+    pages: "ページ数",
+    location: "地域",
+    locationPh: "ダッカ, バングラデシュ または 都市,地域,国",
+    advanced: "オプション",
+    mock: "モックモード（ブラウザ不使用）",
+    solve: "CAPTCHA を自動解決（CapSolver）",
+    run: "スクレイプ実行",
+    hProgress: "進行状況",
+    pSession: "セッション準備",
+    pAutocomplete: "サジェスト取得",
+    pOrganic: "オーガニック結果",
+    pAi: "AI Overview",
+    pPaa: "People Also Ask",
+    pRelated: "関連検索とローカルパック",
+    pPages: "残りのページ",
+    pMaps: "Google Maps",
+    pFinalize: "結果をまとめています",
+    stRunning: "実行中: {0}",
+    stDone: (n, p, r) => `完了: オーガニック ${n} 件, PAA ${p} 件, 関連 ${r} 件`,
+    stPartial: (n, codes) => `一部成功: オーガニック ${n} 件, エラー: ${codes}`,
+    stBlocked: "ブロック",
+    stNetErr: "リクエスト失敗: {0}",
+    timeout: "タイムアウト",
+    solvePrefix: "solve",
+    solvesLabel: (n) => `CAPTCHA 解決 x${n}`,
+    solverReady: "ソルバー準備完了",
+    solverOff: "ソルバー off",
+    solverTitle: (b) => `CapSolver${b != null ? `, 残高 ${b}` : ""}`,
+    session: "セッション",
+    sessionNone: "セッションなし",
+    tabOrganic: "Organic",
+    tabPaa: "PAA",
+    tabAi: "AI Overview",
+    tabRelated: "関連",
+    tabMaps: "Maps",
+    tabAuto: "サジェスト",
+    tabRaw: "Raw JSON",
+    hOrganic: "オーガニック結果",
+    hPaa: "People Also Ask",
+    hAi: "AI Overview",
+    hRelated: "関連検索",
+    hLocal: "ローカルパック",
+    hMaps: "Google Maps",
+    hAuto: "サジェスト候補",
+    hRaw: "Raw JSON",
+    rawSub: "（JSON 契約）",
+    copy: "JSON をコピー",
+    copied: "コピー済み",
+    noSnippet: "回答は取得できませんでした",
+    openSource: "ソースを開く",
+    emptyOrganic: "オーガニック結果なし",
+    emptyPaa: "質問は取得できませんでした",
+    emptyAi: "このクエリに AI Overview はありません",
+    emptyRelated: "関連検索なし",
+    emptyLocal: "ローカルパックなし（地域意図のないクエリでは正常系）",
+    emptyMaps: "Maps 結果なし",
+    emptyAuto: "サジェストなし",
+    errLabels: {
+      captcha_v2: "Google CAPTCHA（reCAPTCHA v2）",
+      captcha_image: "Google 画像 CAPTCHA",
+      captcha_unknown: "Google チャレンジ",
+      consent: "同意画面",
+      js_required: "JavaScript 必須",
+      unusual_traffic: "レート制限（ウィジェットなし）",
+      zero_result: "セレクタドリフト（0件）",
+      fetch_error: "取得エラー",
+      egress_policy_blocked: "Egress ポリシー",
+      no_egress: "Egress プロキシ未設定",
+      web_fallback_error: "Web モード再取得エラー",
+      autocomplete_error: "サジェストエラー",
+      maps_error: "マップエラー",
+      maps_zero_result: "マップのセレクタドリフト",
+    },
+  },
+};
+
+let uiLang = localStorage.getItem("serp-ui-lang") || "en";
+if (!STRINGS[uiLang]) uiLang = "en";
+
+function t(key, ...args) {
+  const v = (STRINGS[uiLang] && STRINGS[uiLang][key]) ?? STRINGS.en[key];
+  return typeof v === "function" ? v(...args) : (v ?? key);
+}
+
+function setLang(lang) {
+  if (!STRINGS[lang]) return;
+  uiLang = lang;
+  localStorage.setItem("serp-ui-lang", lang);
+  document.documentElement.lang = lang === "ja" ? "ja" : "en";
+  document.title = t("docTitle");
+  document.querySelectorAll("[data-i18n]").forEach((el) => {
+    el.innerHTML = t(el.getAttribute("data-i18n"));
+  });
+  document.querySelectorAll("[data-i18n-ph]").forEach((el) => {
+    el.placeholder = t(el.getAttribute("data-i18n-ph"));
+  });
+  document.querySelectorAll("[data-i18n-aria]").forEach((el) => {
+    el.setAttribute("aria-label", t(el.getAttribute("data-i18n-aria")));
+  });
+  document.querySelectorAll("#langToggle button").forEach((b) =>
+    b.setAttribute("aria-pressed", b.dataset.lang === uiLang ? "true" : "false"));
+}

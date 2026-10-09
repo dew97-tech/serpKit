@@ -1,0 +1,55 @@
+{
+  "preset": "us",
+  "runs": 3,
+  "pages": 1,
+  "proxy": "gw.dataimpulse.com:823",
+  "organic_success": 2,
+  "organic_success_pct": 66.7,
+  "captcha_solves_attempted": 5,
+  "captcha_solves_accepted": 2,
+  "captcha_solve_accept_pct": 40.0,
+  "avg_total_ms": 44196,
+  "results": [
+    {
+      "q": "best pizza in new york",
+      "organic": 0,
+      "pages_fetched": 0,
+      "related_searches": 0,
+      "related_questions": 0,
+      "ai_overview": false,
+      "local_pack": false,
+      "solves": 2,
+      "solves_accepted": 0,
+      "errors": [
+        "captcha_image"
+      ],
+      "total_ms": 42108
+    },
+    {
+      "q": "dentist new york",
+      "organic": 8,
+      "pages_fetched": 1,
+      "related_searches": 8,
+      "related_questions": 5,
+      "ai_overview": false,
+      "local_pack": true,
+      "solves": 1,
+      "solves_accepted": 1,
+      "errors": [],
+      "total_ms": 34020
+    },
+    {
+      "q": "how to file taxes",
+      "organic": 7,
+      "pages_fetched": 1,
+      "related_searches": 8,
+      "related_questions": 5,
+      "ai_overview": false,
+      "local_pack": false,
+      "solves": 2,
+      "solves_accepted": 1,
+      "errors": [],
+      "total_ms": 56462
+    }
+  ]
+}

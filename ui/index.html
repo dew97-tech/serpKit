@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SERP KIT</title>
+<link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+<header class="toolbar" role="banner">
+  <div class="toolbar-inner">
+    <div class="brand-block">
+      <span class="brand">SERP KIT</span>
+      <span class="sub" data-i18n="sub">Google SERP collection and inspection</span>
+    </div>
+    <div class="toolbar-right">
+      <div class="seg" id="langToggle" role="group" aria-label="UI language">
+        <button type="button" data-lang="en" aria-pressed="true">EN</button>
+        <button type="button" data-lang="ja" aria-pressed="false">JP</button>
+      </div>
+      <span class="pill" id="sessionPill" title=""><i class="dot"></i><span id="sessionText">...</span></span>
+      <span class="pill" id="solverPill" title=""><i class="dot"></i><span id="solverText">...</span></span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="card" aria-label="Search parameters">
+    <form id="scrapeForm" class="form-stack">
+      <div class="form-row search-row">
+        <label class="field preset"><span data-i18n="preset">Preset</span>
+          <select id="preset">
+            <option value="us">US / English</option>
+            <option value="japan">Japan / 日本語</option>
+            <option value="bangladesh">Bangladesh / English</option>
+          </select>
+        </label>
+        <label class="field grow"><span data-i18n="keyword">Keyword</span>
+          <input id="q" name="q" type="search" value=""
+                 data-i18n-ph="keywordPh" placeholder="e.g. best pizza in new york"
+                 autocomplete="off" required />
+        </label>
+        <label class="field narrow"><span data-i18n="pages">Pages</span>
+          <input id="pages" type="number" min="1" max="3" value="3" />
+        </label>
+        <button class="button primary" type="submit" id="runBtn" data-i18n="run">Run scrape</button>
+      </div>
+
+      <details class="advanced">
+        <summary data-i18n="advanced">Options</summary>
+        <div class="form-row adv-grid">
+          <label class="field grow"><span data-i18n="location">Location</span>
+            <input id="location" value="" data-i18n-ph="locationPh"
+                   placeholder="Dhaka, Bangladesh or City,Region,Country" /></label>
+          <label class="field"><span>hl</span><input id="hl" value="en" /></label>
+          <label class="field"><span>gl</span><input id="gl" value="us" /></label>
+          <label class="field"><span>domain</span><input id="domain" value="www.google.com" /></label>
+        </div>
+        <div class="form-row actions-row">
+          <label class="toggle"><input id="mock" type="checkbox" /> <span data-i18n="mock">Mock mode (no browser)</span></label>
+          <label class="toggle"><input id="solve" type="checkbox" checked /> <span data-i18n="solve">Solve CAPTCHAs (CapSolver)</span></label>
+        </div>
+      </details>
+    </form>
+  </section>
+
+  <div id="status" class="status" role="status" aria-live="polite" hidden></div>
+
+  <section class="card progress-card" id="progressCard" hidden aria-live="polite">
+    <h2 data-i18n="hProgress">Progress</h2>
+    <ol id="progressList" class="progress-list"></ol>
+    <p id="progressNote" class="progress-note" hidden></p>
+  </section>
+
+  <nav class="tabs" role="tablist" aria-label="Result blocks" id="tabs" hidden>
+    <button role="tab" data-tab="organic" aria-selected="true"><span data-i18n="tabOrganic">Organic</span> <b id="cOrganic"></b></button>
+    <button role="tab" data-tab="paa" aria-selected="false"><span data-i18n="tabPaa">PAA</span> <b id="cPaa"></b></button>
+    <button role="tab" data-tab="ai" aria-selected="false"><span data-i18n="tabAi">AI Overview</span></button>
+    <button role="tab" data-tab="related" aria-selected="false"><span data-i18n="tabRelated">Related</span></button>
+    <button role="tab" data-tab="maps" aria-selected="false"><span data-i18n="tabMaps">Maps</span> <b id="cMaps"></b></button>
+    <button role="tab" data-tab="auto" aria-selected="false"><span data-i18n="tabAuto">Suggest</span></button>
+    <button role="tab" data-tab="raw" aria-selected="false"><span data-i18n="tabRaw">Raw JSON</span></button>
+  </nav>
+
+  <section class="card" id="panel-organic" role="tabpanel">
+    <h2><span data-i18n="hOrganic">Organic results</span> <small id="pagesNote"></small></h2>
+    <div class="table-wrap"><table id="organicTable">
+      <thead><tr><th>#</th><th>Title / link</th><th>Snippet</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </section>
+
+  <section class="card" id="panel-paa" role="tabpanel" hidden>
+    <h2 data-i18n="hPaa">People Also Ask</h2>
+    <div id="paaList" class="accordion"></div>
+  </section>
+
+  <section class="card" id="panel-ai" role="tabpanel" hidden>
+    <h2 data-i18n="hAi">AI Overview</h2>
+    <div id="aiBody"></div>
+  </section>
+
+  <section class="card" id="panel-related" role="tabpanel" hidden>
+    <h2 data-i18n="hRelated">Related searches</h2>
+    <div id="relChips" class="chips"></div>
+    <h2 data-i18n="hLocal">Local pack</h2>
+    <div id="localBody"></div>
+  </section>
+
+  <section class="card" id="panel-maps" role="tabpanel" hidden>
+    <h2 data-i18n="hMaps">Google Maps</h2>
+    <div id="mapsGrid" class="map-grid"></div>
+  </section>
+
+  <section class="card" id="panel-auto" role="tabpanel" hidden>
+    <h2 data-i18n="hAuto">Autocomplete suggestions</h2>
+    <ol id="autoList" class="suggest"></ol>
+  </section>
+
+  <section class="card" id="panel-raw" role="tabpanel" hidden>
+    <h2><span data-i18n="hRaw">Raw JSON</span> <small data-i18n="rawSub">(JSON contract)</small></h2>
+    <div class="raw-bar"><span id="timingLine"></span>
+      <button class="button" id="copyBtn" type="button" data-i18n="copy">Copy JSON</button>
+    </div>
+    <pre id="rawPre" class="raw"></pre>
+  </section>
+</main>
+
+<script src="/static/i18n.js?v=3"></script>
+<script src="/static/app.js?v=3"></script>
+</body>
+</html>
