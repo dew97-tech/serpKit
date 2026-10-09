@@ -119,6 +119,14 @@ SOLVE_MAX_PER_RUN = int(os.environ.get("SOLVE_MAX_PER_RUN", "3"))
 SOLVE_MIN_INTERVAL_S = float(os.environ.get("SOLVE_MIN_INTERVAL_S", "5"))
 SOLVE_TIMEOUT_S = float(os.environ.get("SOLVE_TIMEOUT_S", "130"))
 
+
+def run_timeout_s() -> float:
+    """Per-run wall-clock budget in seconds (RUN_TIMEOUT_S, default 600)."""
+    try:
+        return float(os.environ.get("RUN_TIMEOUT_S", "600"))
+    except ValueError:
+        return 600.0
+
 # Bright Data host detection (Google policy guard).
 BD_PROXY_HOST_MARKER = "brd.superproxy.io"
 

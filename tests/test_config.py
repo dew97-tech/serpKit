@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import os
 import sys
 import unittest
 from pathlib import Path
@@ -15,6 +16,7 @@ from scraper.config import (  # noqa: E402
     build_uule,
     canonical_location_uule,
     parse_location,
+    run_timeout_s,
 )
 
 
@@ -151,6 +153,29 @@ class TestInitScript(unittest.TestCase):
         self.assertIn("window.chrome", script)
         self.assertIn("SwiftShader", script)
         self.assertIn("permissions", script)
+
+
+class TestRunTimeout(unittest.TestCase):
+    def test_default(self):
+        saved = os.environ.pop("RUN_TIMEOUT_S", None)
+        try:
+            self.assertEqual(run_timeout_s(), 600.0)
+        finally:
+            if saved is not None:
+                os.environ["RUN_TIMEOUT_S"] = saved
+
+    def test_env_override_and_invalid(self):
+        saved = os.environ.get("RUN_TIMEOUT_S")
+        os.environ["RUN_TIMEOUT_S"] = "120"
+        try:
+            self.assertEqual(run_timeout_s(), 120.0)
+            os.environ["RUN_TIMEOUT_S"] = "not-a-number"
+            self.assertEqual(run_timeout_s(), 600.0)
+        finally:
+            if saved is None:
+                os.environ.pop("RUN_TIMEOUT_S", None)
+            else:
+                os.environ["RUN_TIMEOUT_S"] = saved
 
 
 if __name__ == "__main__":

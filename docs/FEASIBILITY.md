@@ -33,6 +33,11 @@ with the reliability caveats below.
   reach the page vs 6/6 with HTTP/1.1), while plain HTTP clients are fine.
 - Media route blocking (images/fonts/media aborted in-context) cuts proxy
   bandwidth ~3×; HTML/JS still load so all parsers are unaffected.
+- Run budget: every live run has a cooperative wall-clock deadline
+  (`RUN_TIMEOUT_S`, default 600 s). Page fetches and solver attempts check
+  the deadline, partial data returns with a `run_timeout` error, and Maps is
+  skipped once the deadline passes. The viewer sizes its watchdog from
+  `/api/health` (`run_timeout_s` plus one minute).
 - Session reuse (`SESSION_REUSE=1`): one sticky residential IP + persisted
   Google cookies are reused across queries while they work. DataImpulse uses
   the primary sticky mechanism — sticky port 10000 + `sessttl.25`, so the IP

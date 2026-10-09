@@ -11,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scraper.runner import _is_blocked, _session_key  # noqa: E402
+from scraper.runner import _has_run_timeout, _is_blocked, _session_key  # noqa: E402
 from scraper.schemas import ScrapeResult  # noqa: E402
 from scraper.sessions import SessionManager, session_ttl_s  # noqa: E402
 
@@ -111,6 +111,14 @@ class TestRunnerHelpers(unittest.TestCase):
         tarpit = ScrapeResult(query="q", locale={}, pages_fetched=1,
                               errors=[{"code": "zero_result"}])
         self.assertTrue(_is_blocked(tarpit))
+
+    def test_has_run_timeout(self):
+        timed_out = ScrapeResult(query="q", locale={},
+                                 errors=[{"code": "run_timeout"}])
+        self.assertTrue(_has_run_timeout(timed_out))
+        other = ScrapeResult(query="q", locale={},
+                             errors=[{"code": "captcha_v2"}])
+        self.assertFalse(_has_run_timeout(other))
 
 
 if __name__ == "__main__":

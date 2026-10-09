@@ -30,6 +30,7 @@ from .config import (
     load_proxy_from_env,
     new_run_id,
     reload_env_if_changed,
+    run_timeout_s,
     validate_proxy_for_google,
 )
 from .maps import collect_maps
@@ -85,6 +86,10 @@ def _session_ip_check(
 
 _BLOCK_CODES = {"captcha_v2", "captcha_image", "captcha_unknown", "consent",
                 "unusual_traffic", "zero_result"}
+
+
+def _has_run_timeout(result: ScrapeResult) -> bool:
+    return any(str(e.get("code")) == "run_timeout" for e in result.errors)
 
 
 def _is_blocked(result: ScrapeResult) -> bool:
@@ -143,6 +148,7 @@ def _execute_scrape(
     on_progress=None,
 ) -> tuple[ScrapeResult, dict | None, bool, str]:
     started = time.time()
+    deadline = started + run_timeout_s()
     timing: dict = {}
     errors: list[dict] = []
 
@@ -175,7 +181,7 @@ def _execute_scrape(
     search = collect_search(params, pages=pages, proxy=playwright_proxy,
                             headless=headless, policy=policy,
                             storage_state=storage_state, warmup=warmup,
-                            on_progress=on_progress)
+                            on_progress=on_progress, deadline=deadline)
     timing.update(search.pop("timing_ms", {}))
     errors.extend(search.pop("errors", []))
     solves = search.pop("solves", [])
@@ -184,7 +190,10 @@ def _execute_scrape(
 
     # 3. Maps (browser, best-effort).
     maps_results: list[dict] = []
-    if include_maps:
+    if include_maps and time.time() >= deadline:
+        emit_progress(on_progress, "note", "note",
+                      "Run deadline reached, skipping Maps")
+    elif include_maps:
         emit_progress(on_progress, "maps", "running")
         t0 = time.time()
         maps_results, maps_errors = collect_maps(params, proxy=playwright_proxy,
@@ -282,7 +291,7 @@ def run_full_scrape(
             session.sessid, session.state, warmup=warmup,
             on_progress=on_progress)
 
-        if blocked and _run_retry_enabled():
+        if blocked and _run_retry_enabled() and not _has_run_timeout(result):
             emit_progress(on_progress, "note", "note",
                           "Blocked, retrying with a fresh session")
             manager.clear(key)

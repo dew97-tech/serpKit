@@ -128,6 +128,10 @@ class BlockDetected(Exception):
         super().__init__(f"{info.get('kind')}: {info.get('url', '')}")
 
 
+class RunDeadlineExceeded(Exception):
+    """Raised when the per-run wall-clock deadline (RUN_TIMEOUT_S) is hit."""
+
+
 # ---------------------------------------------------------------------------
 # Block classification — structured, fail-loud
 # ---------------------------------------------------------------------------
@@ -917,6 +921,7 @@ def _collect_web_fallback(
     policy: SolvePolicy | None,
     resolver,
     on_progress=None,
+    deadline: float | None = None,
 ) -> tuple[list[dict], list[str], list[dict], bool, int]:
     """Classic Web-mode (`udm=14`) refetch for off-query AI-Mode pages."""
     organic: list[dict] = []
@@ -926,7 +931,7 @@ def _collect_web_fallback(
     fetched = 0
     for i in range(pages):
         html, _ = fetch_search_page(context, web_params, i * 10, policy,
-                                    on_progress=on_progress)
+                                    on_progress=on_progress, deadline=deadline)
         fetched += 1
         organic.extend(parse_organic(html, base_position=len(organic),
                                      link_resolver=resolver))
@@ -946,6 +951,7 @@ def fetch_search_page(
     policy: SolvePolicy | None = None,
     warmup: bool = False,
     on_progress=None,
+    deadline: float | None = None,
 ) -> tuple[str, str]:
     """Fetch one `/search` page; solves /sorry/ in-place when policy allows.
 
@@ -957,6 +963,8 @@ def fetch_search_page(
     """
     page = context.new_page()
     try:
+        if deadline and time.time() > deadline:
+            raise RunDeadlineExceeded()
         homepage = f"https://{params.google_domain}/"
         referer = None
         if warmup and start == 0:
@@ -983,6 +991,8 @@ def fetch_search_page(
                               "CAPTCHA detected, solver unavailable")
             attempts = 0
             while attempts < policy.max_solves:
+                if deadline and time.time() > deadline:
+                    raise RunDeadlineExceeded()
                 if attempts:
                     # Reload for a FRESH Enterprise challenge instead of
                     # solving an escalated image captcha (weak OCR path).
@@ -1084,6 +1094,7 @@ def collect_search(
     storage_state: dict | None = None,
     warmup: bool = False,
     on_progress=None,
+    deadline: float | None = None,
 ) -> dict:
     """Collect pages 1..N in ONE context (session consistency). Partial contract.
 
@@ -1130,6 +1141,8 @@ def collect_search(
             for i in range(pages):
                 start = i * 10
                 try:
+                    if deadline and time.time() > deadline:
+                        raise RunDeadlineExceeded()
                     if i == 0:
                         emit_progress(on_progress, "organic", "running",
                                       f"page 1 of {pages}")
@@ -1139,7 +1152,8 @@ def collect_search(
                                       f"page {i + 1} of {pages}")
                     html, page_url = fetch_search_page(context, params, start,
                                                        policy, warmup=warmup,
-                                                       on_progress=on_progress)
+                                                       on_progress=on_progress,
+                                                       deadline=deadline)
                     pages_fetched += 1
                     organic.extend(parse_organic(html, base_position=len(organic),
                                                  link_resolver=resolver))
@@ -1170,7 +1184,7 @@ def collect_search(
                             (web_organic, web_related, web_questions,
                              web_has_next, web_pages) = _collect_web_fallback(
                                 context, web_params, pages, policy, resolver,
-                                on_progress=on_progress)
+                                on_progress=on_progress, deadline=deadline)
                             if web_organic:
                                 organic = web_organic
                                 pages_fetched = web_pages
@@ -1192,6 +1206,14 @@ def collect_search(
                     errors.append({"code": b.info.get("kind", "blocked"),
                                    "message": str(b), "detail": b.info})
                     break  # rotating IP/solve budget handled; fail loud
+                except RunDeadlineExceeded:
+                    errors.append({
+                        "code": "run_timeout",
+                        "message": "Run deadline reached, partial data returned.",
+                    })
+                    emit_progress(on_progress, "note", "note",
+                                  "Run deadline reached")
+                    break
                 except Exception as e:  # noqa: BLE001, surface every error
                     errors.append({"code": "fetch_error", "message": str(e)[:300]})
                     break

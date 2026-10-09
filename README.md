@@ -94,6 +94,7 @@ All variables are optional. See `.env.example` for the full list.
 | `PROXY_SERVER/USERNAME/PASSWORD` | Residential egress for Google |
 | `PROXY_USERNAME_TEMPLATE` | Full username template, for example `{username}__cr.{country};sessid.{run_id};sessttl.25` |
 | `SESSION_REUSE`, `SESSION_TTL_S`, `SESSION_WARMUP`, `SESSION_IP_CHECK`, `RUN_RETRY` | Session lifecycle controls |
+| `RUN_TIMEOUT_S` | Per-run wall-clock budget in seconds, default 600 |
 | `SOLVE_MAX_PER_RUN`, `SOLVE_MIN_INTERVAL_S`, `SOLVE_TIMEOUT_S` | Solver budget and limits |
 | `BROWSER_CHANNEL` | `chrome` (default) or `chromium` |
 | `SERP_DEBUG_HTML_DIR` | Saves captured HTML for selector debugging |

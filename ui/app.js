@@ -10,6 +10,7 @@ const runBtn = $("runBtn");
 let lastData = null;
 let presets = {};
 let running = false;
+let runTimeoutMs = 660000;
 
 const TAB_IDS = ["organic", "paa", "ai", "related", "maps", "auto", "raw"];
 
@@ -92,6 +93,7 @@ async function loadStatus() {
     $("solverText").textContent = s.configured ? t("solverReady") : t("solverOff");
     $("solverPill").title = t("solverTitle", s.balance);
     $("solverPill").classList.toggle("pill-warn", !s.configured);
+    if (h.run_timeout_s) runTimeoutMs = (h.run_timeout_s * 1000) + 60000;
   } catch { /* status pill is progressive enhancement */ }
 }
 
@@ -183,7 +185,7 @@ function runStreamed(params) {
     $("progressCard").hidden = false;
     const es = new EventSource(`/api/scrape/stream?${params}`);
     let settled = false;
-    const timer = setTimeout(() => finish(new Error(t("timeout"))), 180000);
+    const timer = setTimeout(() => finish(new Error(t("timeout"))), runTimeoutMs);
 
     function finish(err) {
       if (settled) return;

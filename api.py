@@ -37,6 +37,7 @@ from scraper.config import (
     load_proxy_from_env,
     parse_location,
     resolve_preset,
+    run_timeout_s,
 )
 from scraper.runner import egress_status, mock_result, run_full_scrape, solver_status
 from scraper.sessions import SessionManager
@@ -166,6 +167,7 @@ def health() -> dict:
         "solver": solver_status(),
         "egress": egress_status(),
         "sessions": _sessions_summary(),
+        "run_timeout_s": run_timeout_s(),
     }
 
 
