@@ -7,8 +7,11 @@
 <meta name="description" content="SERP KIT collects Google organic, PAA, AI Overview, local pack, Maps and autocomplete blocks into one inspection viewer and JSON contract." />
 <link rel="canonical" href="/" />
 <meta name="robots" content="noindex, nofollow" />
-<meta name="theme-color" content="#111111" />
+<meta name="theme-color" content="#faf5ec" />
 <meta name="color-scheme" content="light" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&display=swap" rel="stylesheet" />
 <meta property="og:type" content="website" />
 <meta property="og:title" content="SERP KIT — Google SERP collection and inspection" />
 <meta property="og:description" content="Collect and inspect Google SERP blocks: organic, PAA, AI Overview, local, Maps, autocomplete." />
@@ -24,7 +27,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png?v=1" />
 <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png?v=1" />
 <link rel="manifest" href="/static/site.webmanifest" />
-<link rel="stylesheet" href="/static/styles.css" />
+<link rel="stylesheet" href="/static/styles.css?v=5" />
 </head>
 <body>
 <header class="toolbar" role="banner">
@@ -105,11 +108,14 @@
   </nav>
 
   <section class="card" id="panel-organic" role="tabpanel">
-    <h2><span data-i18n="hOrganic">Organic results</span> <small id="pagesNote"></small></h2>
-    <div class="table-wrap"><table id="organicTable">
-      <thead><tr><th>#</th><th>Title / link</th><th>Snippet</th></tr></thead>
-      <tbody></tbody>
-    </table></div>
+    <div class="panel-head">
+      <h2><span data-i18n="hOrganic">Organic results</span> <small id="pagesNote"></small></h2>
+      <div class="panel-actions">
+        <button class="chip-btn" id="orgCopyAll" type="button" data-i18n="copyAll" data-i18n-aria="copyAll">Copy all</button>
+        <button class="chip-btn" id="orgExpandAll" type="button" data-i18n-aria="expandAll">Expand all</button>
+      </div>
+    </div>
+    <ol id="orgList" class="org-list"></ol>
   </section>
 
   <section class="card" id="panel-paa" role="tabpanel" hidden>
@@ -118,7 +124,12 @@
   </section>
 
   <section class="card" id="panel-ai" role="tabpanel" hidden>
-    <h2 data-i18n="hAi">AI Overview</h2>
+    <div class="panel-head">
+      <h2 data-i18n="hAi">AI Overview</h2>
+      <div class="panel-actions">
+        <button class="chip-btn" id="aiCopyAll" type="button" data-i18n="copyAnswer" data-i18n-aria="copyAnswer">Copy answer</button>
+      </div>
+    </div>
     <div id="aiBody"></div>
   </section>
 
@@ -148,7 +159,7 @@
   </section>
 </main>
 
-<script src="/static/i18n.js?v=3"></script>
-<script src="/static/app.js?v=3"></script>
+<script src="/static/i18n.js?v=5"></script>
+<script src="/static/app.js?v=4"></script>
 </body>
 </html>

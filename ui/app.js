@@ -60,6 +60,54 @@ function truncate(s, n = 120) {
   return s.length > n ? s.slice(0, n - 1) + "..." : s;
 }
 
+/* --- inline SVG icons (no emoji): open, copy, check, chevron --- */
+
+const ICONS = {
+  open: '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M6.5 3.5h-3v9h9v-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M9.5 3.5h3v3M12.2 3.8 7.5 8.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  copy: '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><rect x="5.5" y="5.5" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.5 5.5v-2a1.5 1.5 0 0 0-1.5-1.5H4.5A1.5 1.5 0 0 0 3 3.5V8a1.5 1.5 0 0 0 1.5 1.5h1" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>',
+  check: '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="m3 8.5 3.2 3.2L13 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  chev: '<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="m4 6 4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+};
+
+function domainOf(link) {
+  try {
+    return new URL(link).hostname.replace(/^www\./, "");
+  } catch { return ""; }
+}
+
+async function copyText(s) {
+  const text = String(s ?? "");
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+      return true;
+    } catch { return false; }
+  }
+}
+
+function flashIconBtn(btn) {
+  if (!btn || btn.dataset.done) return;
+  const orig = btn.innerHTML;
+  btn.dataset.done = "1";
+  btn.classList.add("is-done");
+  btn.innerHTML = ICONS.check;
+  setTimeout(() => {
+    btn.innerHTML = orig;
+    btn.classList.remove("is-done");
+    delete btn.dataset.done;
+  }, 1400);
+}
+
 function errLabel(code) {
   const labels = t("errLabels");
   return (labels && labels[code]) || code;
@@ -247,19 +295,41 @@ function renderAll(d) {
     if (!byPage.has(p)) byPage.set(p, []);
     byPage.get(p).push(r);
   });
-  const orgRows = [];
+  const orgItems = [];
   for (const [pageNo, items] of [...byPage.entries()].sort((a, b) => a[0] - b[0])) {
     if (byPage.size > 1) {
-      orgRows.push(`<tr class="page-sep"><td colspan="3">${esc(t("pageN", pageNo))} (${items.length})</td></tr>`);
+      orgItems.push(`<li class="org-sep" aria-hidden="true">${esc(t("pageN", pageNo))} (${items.length})</li>`);
     }
-    orgRows.push(...items.map((r) => `
-    <tr><td class="pos">${r.position}</td>
-    <td><a href="${esc(r.link)}" target="_blank" rel="noopener">${esc(r.title)}</a>
-      <br /><span class="snip">${esc(r.link)}</span></td>
-    <td class="snip">${esc(r.snippet)}</td></tr>`));
+    orgItems.push(...items.map((r) => {
+      const dom = domainOf(r.link);
+      const long = String(r.snippet || "").length > 160;
+      return `
+      <li class="org-item" data-pos="${esc(r.position)}">
+        <div class="org-top">
+          <span class="rank">#${esc(r.position)}</span>
+          ${dom ? `<span class="domain">${esc(dom)}</span>` : ""}
+          ${byPage.size > 1 ? `<span class="page-tag">${esc(t("pageN", pageNo))}</span>` : ""}
+        </div>
+        <a class="org-title" href="${esc(r.link)}" target="_blank" rel="noopener">${esc(r.title)}</a>
+        <div class="org-url-row">
+          <span class="org-url">${esc(r.link)}</span>
+          <span class="org-icons">
+            <button class="icon-btn" type="button" data-act="open" data-link="${esc(r.link)}" aria-label="${esc(t("openResult"))}" title="${esc(t("openResult"))}">${ICONS.open}</button>
+            <button class="icon-btn" type="button" data-act="copy-link" data-link="${esc(r.link)}" aria-label="${esc(t("copyLink"))}" title="${esc(t("copyLink"))}">${ICONS.copy}</button>
+            <button class="icon-btn" type="button" data-act="copy-snip" data-snip="${esc(r.snippet || "")}" aria-label="${esc(t("copySnippet"))}" title="${esc(t("copySnippet"))}">${ICONS.copy}</button>
+          </span>
+        </div>
+        ${r.snippet ? `<p class="org-snip${long ? " clamp" : ""}">${esc(r.snippet)}</p>
+        ${long ? `<button class="more-btn" type="button" data-act="toggle">${esc(t("showMore"))}</button>` : ""}` : ""}
+      </li>`;
+    }));
   }
-  $("organicTable").querySelector("tbody").innerHTML = orgRows.join("")
-    || `<tr><td colspan="3" class="empty">${esc(t("emptyOrganic"))}</td></tr>`;
+  $("orgList").innerHTML = orgItems.join("")
+    || `<li class="empty">${esc(t("emptyOrganic"))}</li>`;
+  const hasLong = $("orgList").querySelector(".org-snip.clamp");
+  $("orgExpandAll").hidden = !hasLong;
+  $("orgExpandAll").textContent = t("expandAll");
+  $("orgExpandAll").setAttribute("aria-label", t("expandAll"));
 
   const paa = d.related_questions || [];
   $("cPaa").textContent = paa.length ? `(${paa.length})` : "";
@@ -270,10 +340,23 @@ function renderAll(d) {
     || `<p class="empty">${esc(t("emptyPaa"))}</p>`;
 
   const ai = d.ai_overview;
-  $("aiBody").innerHTML = ai && ai.text_blocks && ai.text_blocks.length
-    ? ai.text_blocks.map((x) => `<div class="ai-block"><p>${esc(x)}</p></div>`).join("")
-      + (ai.links || []).map((l) => `<div><a href="${esc(l.link)}" target="_blank" rel="noopener">${esc(l.title || l.link)}</a></div>`).join("")
+  const aiBlocks = (ai && ai.text_blocks) || [];
+  const aiLinks = (ai && ai.links) || [];
+  $("aiBody").innerHTML = aiBlocks.length
+    ? `<div class="ai-card"><div class="ai-paras">${aiBlocks.map((x) => `
+        <div class="ai-para">
+          <p>${esc(x)}</p>
+          <button class="icon-btn" type="button" data-act="copy-block" data-text="${esc(x)}" aria-label="${esc(t("copyBlock"))}" title="${esc(t("copyBlock"))}">${ICONS.copy}</button>
+        </div>`).join("")}</div>`
+      + (aiLinks.length ? `<div class="ai-sources">${aiLinks.map((l) => {
+        const dom = domainOf(l.link);
+        return `<a class="src-chip" href="${esc(l.link)}" target="_blank" rel="noopener">`
+          + `${dom ? `<span class="src-dom">${esc(dom)}</span>` : ""}`
+          + `<span class="src-title">${esc(l.title || l.link)}</span>${ICONS.open}</a>`;
+      }).join("")}</div>` : "")
+      + `</div>`
     : `<p class="empty">${esc(t("emptyAi"))}</p>`;
+  $("aiCopyAll").hidden = !aiBlocks.length;
 
   $("relChips").innerHTML = rel.map((s) => `<span>${esc(s)}</span>`).join("")
     || `<p class="empty">${esc(t("emptyRelated"))}</p>`;
@@ -368,9 +451,76 @@ tabsEl.addEventListener("click", (e) => {
 
 $("copyBtn").addEventListener("click", async () => {
   if (!lastData) return;
-  await navigator.clipboard.writeText(JSON.stringify(lastData, null, 2));
+  await copyText(JSON.stringify(lastData, null, 2));
   $("copyBtn").textContent = t("copied");
   setTimeout(() => { $("copyBtn").textContent = t("copy"); }, 1500);
+});
+
+/* --- organic + AI panel actions (delegated) --- */
+
+$("orgList").addEventListener("click", async (e) => {
+  const btn = e.target.closest("button[data-act]");
+  if (!btn) return;
+  const item = btn.closest(".org-item");
+  const act = btn.dataset.act;
+  if (act === "toggle" && item) {
+    const snip = item.querySelector(".org-snip");
+    const open = snip.classList.toggle("clamp");
+    btn.textContent = open ? t("showMore") : t("showLess");
+    return;
+  }
+  if (act === "open" && btn.dataset.link) {
+    window.open(btn.dataset.link, "_blank", "noopener");
+    return;
+  }
+  if (act === "copy-link" && btn.dataset.link) {
+    if (await copyText(btn.dataset.link)) flashIconBtn(btn);
+    return;
+  }
+  if (act === "copy-snip" && btn.dataset.snip) {
+    if (await copyText(btn.dataset.snip)) flashIconBtn(btn);
+  }
+});
+
+$("orgCopyAll").addEventListener("click", async (e) => {
+  const org = (lastData && lastData.organic) || [];
+  if (!org.length) return;
+  const text = org.map((r) => `${r.position}. ${r.title}\n${r.link}${r.snippet ? `\n${r.snippet}` : ""}`).join("\n\n");
+  if (await copyText(text)) {
+    const b = e.currentTarget;
+    const orig = b.textContent;
+    b.textContent = t("copied");
+    setTimeout(() => { b.textContent = orig; }, 1400);
+  }
+});
+
+$("orgExpandAll").addEventListener("click", () => {
+  const list = $("orgList");
+  const collapsed = list.querySelectorAll(".org-snip.clamp");
+  const expand = collapsed.length > 0;
+  list.querySelectorAll(".org-snip").forEach((p) => p.classList.toggle("clamp", !expand));
+  list.querySelectorAll('.more-btn[data-act="toggle"]').forEach((b) => {
+    b.textContent = expand ? t("showLess") : t("showMore");
+  });
+  $("orgExpandAll").textContent = expand ? t("collapseAll") : t("expandAll");
+});
+
+$("aiBody").addEventListener("click", async (e) => {
+  const btn = e.target.closest('button[data-act="copy-block"]');
+  if (!btn) return;
+  if (await copyText(btn.dataset.text || "")) flashIconBtn(btn);
+});
+
+$("aiCopyAll").addEventListener("click", async (e) => {
+  const ai = lastData && lastData.ai_overview;
+  const blocks = (ai && ai.text_blocks) || [];
+  if (!blocks.length) return;
+  if (await copyText(blocks.join("\n\n"))) {
+    const b = e.currentTarget;
+    const orig = b.textContent;
+    b.textContent = t("copied");
+    setTimeout(() => { b.textContent = orig; }, 1400);
+  }
 });
 
 $("preset").addEventListener("change", (e) => applyPreset(e.target.value));
