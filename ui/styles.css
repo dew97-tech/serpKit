@@ -114,6 +114,8 @@ body { margin: 0; background: var(--bg); color: var(--ink); font-size: 1rem; }
 .progress-list li.st-done .mark { background: var(--ok); }
 .progress-list li.st-error { color: var(--err); font-weight: 600; }
 .progress-list li.st-error .mark { background: var(--err); }
+.progress-list li.st-skipped { color: var(--muted); }
+.progress-list li.st-skipped .mark { background: transparent; border: 2px solid var(--line); }
 .progress-note { margin: 16px 0 0; font-size: 0.875rem; color: var(--muted); }
 
 /* Tabs: rounded rail on soft-gray band, active card */
@@ -143,6 +145,11 @@ tr.page-sep td {
 .panel-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .chip-btn { font: inherit; font-size: 0.8125rem; font-weight: 600; white-space: nowrap; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 8px 16px; border-radius: 999px; flex-shrink: 0; }
 .chip-btn:hover { border-color: var(--ink); }
+.info-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--muted); font: inherit; font-size: 0.875rem; font-weight: 700; font-style: italic; cursor: pointer; flex-shrink: 0; }
+.info-btn:hover { border-color: var(--warn); color: var(--warn); }
+.info-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.panel-note { margin: 0 0 16px; padding: 12px 16px; font-size: 0.875rem; color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); }
+.panel-note b { color: var(--ink); }
 
 /* Organic results: stacked cards, no horizontal scroll */
 .org-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }

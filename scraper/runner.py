@@ -145,6 +145,83 @@ def _proxy_thread_backoff_s() -> float:
         return 8.0
 
 
+# -- Consecutive-block cooldown (don't burn peers by rapid re-clicking) -----
+# A rejected solve clears the session, so the next run mints a fresh sessid
+# (fresh peer). When a geo pool is flagged, every fresh peer is refused and
+# each retry burns another IP deeper into the flag. After N consecutive
+# blocks inside a window, refuse fast with `block_cooldown` instead of
+# launching a browser, until the cooldown elapses.
+
+def _block_cooldown_cfg() -> tuple[bool, int, int, int]:
+    """(enabled, blocks, window_s, cooldown_s) from env."""
+    enabled = os.environ.get("BLOCK_COOLDOWN", "1").lower() not in (
+        "0", "false", "no", "")
+    try:
+        blocks = max(2, int(os.environ.get("BLOCK_COOLDOWN_BLOCKS", "2")))
+    except ValueError:
+        blocks = 2
+    try:
+        window_s = max(60, int(os.environ.get("BLOCK_COOLDOWN_WINDOW_S",
+                                              "1800")))
+    except ValueError:
+        window_s = 1800
+    try:
+        cooldown_s = max(60, int(os.environ.get("BLOCK_COOLDOWN_S", "600")))
+    except ValueError:
+        cooldown_s = 600
+    return enabled, blocks, window_s, cooldown_s
+
+
+def _block_tracker_path(key: str) -> Path:
+    from .sessions import _session_dir
+
+    return _session_dir() / f"{key}.blocks.json"
+
+
+def _cooldown_remaining_s(key: str) -> float:
+    """Seconds left on the block cooldown for this preset (0 = none)."""
+    enabled, blocks, window_s, cooldown_s = _block_cooldown_cfg()
+    if not enabled:
+        return 0.0
+    try:
+        data = json.loads(_block_tracker_path(key).read_text("utf-8"))
+        count = int(data.get("count", 0))
+        last_ts = float(data.get("last_ts", 0))
+    except Exception:
+        return 0.0
+    now = time.time()
+    if count < blocks or now - last_ts > window_s:
+        return 0.0
+    return max(0.0, cooldown_s - (now - last_ts))
+
+
+def _record_block(key: str) -> None:
+    try:
+        path = _block_tracker_path(key)
+        try:
+            data = json.loads(path.read_text("utf-8"))
+        except Exception:
+            data = {}
+        now = time.time()
+        _, _, window_s, _ = _block_cooldown_cfg()
+        count = int(data.get("count", 0))
+        first_ts = float(data.get("first_ts", now))
+        if now - first_ts > window_s:
+            count, first_ts = 0, now
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"count": count + 1, "first_ts": first_ts,
+                                    "last_ts": now}), encoding="utf-8")
+    except Exception:
+        pass
+
+
+def _clear_blocks(key: str) -> None:
+    try:
+        _block_tracker_path(key).unlink()
+    except OSError:
+        pass
+
+
 def _ip_cache_ttl_s() -> float:
     try:
         return max(0.0, float(os.environ.get("SESSION_IP_CACHE_S", "60")))
@@ -375,6 +452,23 @@ def run_full_scrape(
         fresh = session is None
         if fresh:
             session = manager.create(key)
+            remaining = _cooldown_remaining_s(key)
+            if remaining > 0:
+                # Geo pool recently refused consecutive sessions: refuse fast
+                # instead of burning another peer on a doomed run.
+                mins = int(remaining // 60) + 1
+                emit_progress(on_progress, "session", "done",
+                              f"cooldown {mins}m")
+                return ScrapeResult(
+                    query=params.q, locale=params.to_dict(),
+                    errors=[{"code": "block_cooldown",
+                             "message": (
+                                 f"{mins} min cooldown after repeated blocks "
+                                 f"on {key}: the geo pool is refusing fresh "
+                                 "sessions. Wait it out instead of retrying "
+                                 "— each attempt burns another peer IP.")}],
+                    mock=False,
+                )
         else:
             _pace_session(session)
 
@@ -411,12 +505,14 @@ def run_full_scrape(
             emit_progress(on_progress, "note", "note",
                           "Proxy quota exhausted, not retrying")
             session.solve_failures += 1
+            _record_block(key)
             manager.clear(key)
             return result
         if _has_proxy_targeting_error(result):
             emit_progress(on_progress, "note", "note",
                           "Proxy targeting/port error, not retrying")
             session.solve_failures += 1
+            _record_block(key)
             manager.clear(key)
             return result
         if _has_proxy_threads_exhausted(result) and _run_retry_enabled():
@@ -465,8 +561,10 @@ def run_full_scrape(
             session.state = state_out
         if blocked:
             session.solve_failures += 1
+            _record_block(key)
             manager.clear(key)  # start fresh next time
         else:
+            _clear_blocks(key)
             manager.save(session)
         return result
 

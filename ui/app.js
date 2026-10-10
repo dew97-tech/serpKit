@@ -14,6 +14,14 @@ let runTimeoutMs = 660000;
 
 const TAB_IDS = ["organic", "paa", "ai", "related", "maps", "auto", "raw"];
 
+/* Page-level fetch problems surface behind the organic ⓘ button. */
+const PAGE_ERR_CODES = new Set([
+  "page_off_query", "fetch_error", "zero_result",
+  "run_timeout", "web_fallback_error",
+]);
+/* Internal codes hidden from the status title (friendly note instead). */
+const HIDDEN_STATUS_CODES = new Set(["page_off_query"]);
+
 const STAGE_KEYS = {
   session: "pSession",
   autocomplete: "pAutocomplete",
@@ -21,7 +29,6 @@ const STAGE_KEYS = {
   ai: "pAi",
   paa: "pPaa",
   related: "pRelated",
-  pages: "pPages",
   maps: "pMaps",
   finalize: "pFinalize",
 };
@@ -188,10 +195,27 @@ function reactSession(detail) {
 /* --- progress checklist driven by real server events --- */
 
 function stagesForRun(params) {
-  const stages = ["session", "autocomplete", "organic", "ai", "paa", "related"];
-  if (parseInt(params.get("pages") || "3", 10) > 1) stages.push("pages");
-  stages.push("maps", "finalize");
-  return stages;
+  // Viewer order: session → autocomplete → AI → PAA → organic →
+  // related+local → maps → finalize. Page 2..N progress folds into the
+  // Organic row ("Page 1 of N"); the related/PAA/AI/local blocks always
+  // come from page 1. `params` is unused; kept for call-site stability.
+  void params;
+  return ["session", "autocomplete", "ai", "paa", "organic", "related",
+          "maps", "finalize"];
+}
+
+function settleProgress() {
+  // Terminal-state guarantee: any row without a done/error tick by the
+  // time the run settles (e.g. maps skipped by deadline) reads "skipped"
+  // instead of spinning or sitting idle forever.
+  $("progressList").querySelectorAll("li[data-stage]").forEach((li) => {
+    if (!li.classList.contains("st-done")
+        && !li.classList.contains("st-error")) {
+      li.classList.add("st-skipped");
+      const detail = li.querySelector(".detail");
+      if (detail && !detail.textContent) detail.textContent = t("skipped");
+    }
+  });
 }
 
 function buildProgress(stageIds) {
@@ -251,6 +275,7 @@ function runStreamed(params) {
       settled = true;
       clearTimeout(timer);
       es.close();
+      settleProgress();
       if (err) reject(err);
     }
 
@@ -330,6 +355,19 @@ function renderAll(d) {
   $("orgExpandAll").hidden = !hasLong;
   $("orgExpandAll").textContent = t("expandAll");
   $("orgExpandAll").setAttribute("aria-label", t("expandAll"));
+
+  // Per-page fetch notes (off-query skips, fetch/timeout errors): hidden
+  // ⓘ button in the panel header reveals the raw messages on click.
+  const pageErrs = (d.errors || []).filter((e) =>
+    PAGE_ERR_CODES.has(String(e.code || "")));
+  const infoBtn = $("orgInfoBtn"), infoNote = $("orgNote");
+  infoBtn.hidden = !pageErrs.length;
+  infoNote.hidden = true;
+  infoBtn.setAttribute("aria-expanded", "false");
+  infoBtn.setAttribute("aria-label", t("pageNotes"));
+  infoBtn.title = t("pageNotes");
+  infoNote.innerHTML = pageErrs.map((e) =>
+    `<div><b>${esc(errLabel(e.code))}:</b> ${esc(shortError(e).msg)}</div>`).join("");
 
   const paa = d.related_questions || [];
   $("cPaa").textContent = paa.length ? `(${paa.length})` : "";
@@ -422,12 +460,26 @@ function renderAll(d) {
 
   const errs = d.errors || [];
   const solve = solveSummary(d);
+  // Internal page-level codes stay out of the status title; an off-query
+  // skip becomes a friendly sub-line instead of "8 organic · page_off_query".
+  const visible = errs.filter((e) => !HIDDEN_STATUS_CODES.has(String(e.code || "")));
+  const skipped = errs.filter((e) => String(e.code || "") === "page_off_query");
+  const skipNote = skipped.map((e) => {
+    const m = /page (\d+)/.exec(String(e.message || ""));
+    return esc(t("pageSkipped", m ? m[1] : "?"));
+  }).join(", ");
   if (!errs.length && org.length) {
     setStatus("ok", esc(t("stDone", org.length, paa.length, (d.related_searches || []).length)));
+  } else if (org.length && !visible.length) {
+    setStatus("ok",
+      esc(t("stDone", org.length, paa.length, (d.related_searches || []).length)) +
+      (skipNote ? `<div class="st-sub">${skipNote}</div>` : "") +
+      (solve ? `<div class="st-sub">${esc(solve)}</div>` : ""));
   } else if (org.length) {
-    const codes = errs.map((e) => e.code).join(", ");
+    const codes = visible.map((e) => e.code).join(", ");
     setStatus("warn",
       `<div class="st-title">${t("stPartial", org.length, esc(codes))}</div>` +
+      (skipNote ? `<div class="st-sub">${skipNote}</div>` : "") +
       (solve ? `<div class="st-sub">${esc(solve)}</div>` : ""));
   } else {
     const first = shortError(errs[0] || { code: "unknown", message: "" });
@@ -492,6 +544,13 @@ $("orgCopyAll").addEventListener("click", async (e) => {
     b.textContent = t("copied");
     setTimeout(() => { b.textContent = orig; }, 1400);
   }
+});
+
+$("orgInfoBtn").addEventListener("click", () => {
+  const note = $("orgNote");
+  const open = note.hidden;
+  note.hidden = !open;
+  $("orgInfoBtn").setAttribute("aria-expanded", open ? "true" : "false");
 });
 
 $("orgExpandAll").addEventListener("click", () => {

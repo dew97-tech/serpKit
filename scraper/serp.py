@@ -222,6 +222,7 @@ class SolvePolicy:
         self.solves: list[dict] = []
         self.fatal = False
         self._circuit_until = 0.0
+        self.image_escalated = False
 
     @property
     def configured(self) -> bool:
@@ -251,6 +252,16 @@ class SolvePolicy:
         can, why = self.can_solve(block)
         if not can:
             self._record(block, outcome="skipped", error=why, ms=0)
+            return False
+        if (block["kind"] == "captcha_image"
+                and any(s.get("outcome") == "rejected"
+                        for s in self.solves)):
+            # Google escalated to an image challenge AFTER refusing a token:
+            # the session/IP is distrusted and OCR on the image almost never
+            # clears (verified). Fail fast, save budget and ~6s per attempt.
+            self.image_escalated = True
+            self._record(block, outcome="skipped",
+                         error="image_after_rejection", ms=0)
             return False
 
         task_type = task_type_for(block, self.proxy_string)
@@ -1087,6 +1098,11 @@ def fetch_search_page(
                         page.wait_for_selector("#search", timeout=20_000)
                     except Exception:
                         pass
+                elif getattr(policy, "image_escalated", False):
+                    emit_progress(on_progress, "note", "note",
+                                  "Image CAPTCHA after a rejected solve — "
+                                  "stopping OCR, rotating session instead")
+                    break
                 attempts += 1
                 block = classify_block(page, page.content())
                 if not block:
@@ -1210,7 +1226,6 @@ def collect_search(
             def resolver(href: str) -> str:
                 return resolve_goto_link(context, params.google_domain, href)
 
-            pages_stage_used = False
             organic_seen: set[str] = set()
             dupes_dropped = 0
             for i in range(pages):
@@ -1230,8 +1245,10 @@ def collect_search(
                         emit_progress(on_progress, "organic", "running",
                                       f"page 1 of {pages}")
                     else:
-                        pages_stage_used = True
-                        emit_progress(on_progress, "pages", "running",
+                        # All page fetches report on the organic channel so
+                        # the viewer shows "Page 1 of N → Page 2 of N" in one
+                        # row (no separate "Remaining pages" stage).
+                        emit_progress(on_progress, "organic", "running",
                                       f"page {i + 1} of {pages}")
                     html, page_url = fetch_search_page(context, params, start,
                                                        policy, warmup=warmup,
@@ -1248,14 +1265,16 @@ def collect_search(
                         })
                         emit_progress(on_progress, "note", "note",
                                       f"Page {i + 1} results ignored (off-query)")
+                        emit_progress(on_progress, "organic", "done",
+                                      f"{len(organic)} results")
                         break
                     dupes_dropped += (len(page_items)
                                       - _merge_organic(page_items, i + 1,
                                                        organic_seen, organic))
                     if i == 0:
-                        emit_progress(on_progress, "organic", "done",
-                                      f"{len(organic)} results")
-                        emit_progress(on_progress, "related", "running")
+                        # Page-1 blocks all come from one fetch: parse first,
+                        # then tick completion markers in viewer order
+                        # (AI → PAA → organic → related).
                         related_searches = _merged_chips(
                             parse_related_searches(html),
                             parse_people_also_search_for(html))
@@ -1263,14 +1282,16 @@ def collect_search(
                         ai_overview = parse_ai_overview(html)
                         local_map, local_results = parse_local_pack(html)
                         module_heads = detect_module_heads(html)
-                        emit_progress(on_progress, "related", "done",
-                                      f"{len(related_searches)} related, "
-                                      f"{len(local_results)} local")
-                        emit_progress(on_progress, "paa", "done",
-                                      f"{len(related_questions)} questions")
                         emit_progress(on_progress, "ai", "done",
                                       (ai_overview or {}).get("source")
                                       or "not present")
+                        emit_progress(on_progress, "paa", "done",
+                                      f"{len(related_questions)} questions")
+                        emit_progress(on_progress, "organic", "done",
+                                      f"{len(organic)} results")
+                        emit_progress(on_progress, "related", "done",
+                                      f"{len(related_searches)} related, "
+                                      f"{len(local_results)} local")
                     has_next = parse_has_next(html)
                     if (i == 0 and organic and not params.web_mode
                             and organic_off_query(params.q, organic)):
@@ -1294,6 +1315,8 @@ def collect_search(
                         except Exception as e:  # noqa: BLE001
                             errors.append({"code": "web_fallback_error",
                                            "message": str(e)[:200]})
+                        emit_progress(on_progress, "organic", "done",
+                                      f"{len(organic)} results")
                         break
                     if not page_items and i == 0:
                         if "/search" in page_url:
@@ -1303,6 +1326,8 @@ def collect_search(
                 except BlockDetected as b:
                     errors.append({"code": b.info.get("kind", "blocked"),
                                    "message": str(b), "detail": b.info})
+                    emit_progress(on_progress, "organic", "error",
+                                  str(b.info.get("kind", "blocked")))
                     break  # rotating IP/solve budget handled; fail loud
                 except RunDeadlineExceeded:
                     errors.append({
@@ -1311,14 +1336,18 @@ def collect_search(
                     })
                     emit_progress(on_progress, "note", "note",
                                   "Run deadline reached")
+                    emit_progress(on_progress, "organic", "error",
+                                  "run timeout")
                     break
                 except Exception as e:  # noqa: BLE001, surface every error
                     errors.append({"code": "fetch_error", "message": str(e)[:300]})
+                    emit_progress(on_progress, "organic", "error",
+                                  "fetch error")
                     break
                 if i < pages - 1:
                     time.sleep(jitter_delay_seconds())
-            if pages_stage_used:
-                emit_progress(on_progress, "pages", "done")
+            emit_progress(on_progress, "organic", "done",
+                          f"{len(organic)} results")
         finally:
             # Thread hygiene: closing the context releases pages/sockets,
             # closing the browser releases the DataImpulse thread. Session
