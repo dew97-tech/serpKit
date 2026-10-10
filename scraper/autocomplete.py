@@ -12,14 +12,29 @@ import httpx
 from .config import SearchParams, build_autocomplete_url
 
 
-def fetch_autocomplete(params: SearchParams, timeout_s: float = 10.0) -> list[str]:
+def fetch_autocomplete(params: SearchParams, timeout_s: float = 10.0,
+                       proxy_url: str | None = None) -> list[str]:
+    """Autocomplete via plain HTTP. `proxy_url` pins the same sessid egress.
+
+    When set, suggestions come from the session's exit IP (geo-consistent);
+    otherwise traffic exits from this machine (office IP leak + geo skew).
+    """
     url = build_autocomplete_url(params)
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:131.0) "
                       "Gecko/20100101 Firefox/131.0",
         "Accept-Language": f"{params.hl}-{params.gl.upper()},{params.hl};q=0.9",
     }
-    resp = httpx.get(url, headers=headers, timeout=timeout_s)
+    if proxy_url:
+        import httpx as _httpx
+
+        timeout = _httpx.Timeout(connect=4.0, read=timeout_s,
+                                 write=timeout_s, pool=4.0)
+        with _httpx.Client(proxy=proxy_url, headers=headers,
+                           timeout=timeout) as client:
+            resp = client.get(url)
+    else:
+        resp = httpx.get(url, headers=headers, timeout=timeout_s)
     resp.raise_for_status()
     try:
         data = resp.json()

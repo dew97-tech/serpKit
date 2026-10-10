@@ -495,11 +495,29 @@ def parse_organic(html: str, base_position: int = 0, link_resolver=None) -> list
     return results
 
 
+def _search_chip_text(anchor) -> str:
+    text = anchor.get_text(" ", strip=True)
+    href = anchor.get("href", "")
+    if not text or not href or "/search" not in href:
+        return ""
+    if "start=" in href:
+        return ""
+    if re.search(r"[?&](udm|tbm)=(?!14)", href):
+        return ""
+    if len(text) < 3 or len(text) > 120:
+        return ""
+    if re.fullmatch(r"[\d\s,.、]+", text):
+        return ""
+    if text.lower() in {"next", "previous", "次へ", "前へ"}:
+        return ""
+    if text.lower() in PAA_JUNK_LABELS:
+        return ""
+    return text
+
+
 def parse_related_searches(html: str) -> list[str]:
-    """Related-search chips only — pagination ("2", "1,2,3") and nav labels
-    live in the same containers and are filtered out (verified 2026-10)."""
+    """Bottom related-search chips (pagination and nav labels filtered out)."""
     soup = BeautifulSoup(html, "lxml")
-    queries: list[str] = []
     for sel in _SELECTORS["related_searches_link"]:
         try:
             anchors = soup.select(sel)
@@ -507,29 +525,58 @@ def parse_related_searches(html: str) -> list[str]:
             continue
         candidates: list[str] = []
         for a in anchors:
-            text = a.get_text(" ", strip=True)
-            href = a.get("href", "")
-            if not text or not href or "/search" not in href:
-                continue
-            if "start=" in href:  # pagination link
-                continue
-            if re.search(r"[?&](udm|tbm)=(?!14)", href):  # vertical tabs
-                continue
-            if len(text) < 3 or len(text) > 120:
-                continue
-            if re.fullmatch(r"[\d\s,.、]+", text):  # "2", "1, 2, 3"
-                continue
-            if text.lower() in {"next", "previous", "次へ", "前へ"}:
-                continue
-            if text.lower() in PAA_JUNK_LABELS:  # All / Images / News / ...
-                continue
-            if text in candidates:
-                continue
-            candidates.append(text)
+            text = _search_chip_text(a)
+            if text and text not in candidates:
+                candidates.append(text)
         if candidates:
-            queries = candidates
+            return candidates[:8]
+    return []
+
+
+def parse_people_also_search_for(html: str) -> list[str]:
+    """Mid-page "People also search for" chips (verified 2026-10 layouts)."""
+    soup = BeautifulSoup(html, "lxml")
+    headings = _SELECTORS.get("people_also_search_for", {}).get("heading", [])
+    node = None
+    for needle in headings:
+        node = soup.find(string=lambda s, n=needle: s and n in s)
+        if node is not None:
             break
-    return queries[:8]
+    if node is None:
+        return []
+    container = node.parent
+    for _ in range(5):
+        if container is None:
+            return []
+        if getattr(container, "name", None) == "div":
+            names: list[str] = []
+            for a in container.select("a[href*='/search']"):
+                text = _search_chip_text(a)
+                if text and text not in names:
+                    names.append(text)
+            if 1 <= len(names) <= 12:
+                return names
+        container = container.parent
+    return []
+
+
+def _merged_chips(*lists) -> list[str]:
+    merged: list[str] = []
+    for items in lists:
+        for item in items:
+            if item not in merged:
+                merged.append(item)
+    return merged[:8]
+
+
+def detect_module_heads(html: str) -> dict:
+    return {
+        "paa": any(m in html for m in ("People also ask", "関連する質問",
+                                       "他の人はこちらも質問")),
+        "pasf": any(m in html for m in ("People also search for",
+                                        "他の人はこちらも検索")),
+        "related": any(m in html for m in ("Related searches", "関連する検索")),
+    }
 
 
 def parse_paa(html: str) -> list[dict]:
@@ -1116,13 +1163,15 @@ def collect_search(
     pages_fetched = 0
     web_fallback_used = False
     midrun_ip_changed = False
+    module_heads: dict = {}
 
     with sync_playwright() as p:
-        browser = launch_chromium(p, headless, proxy=proxy)
+        browser = None
         context = None
         state_out: dict | None = None
         user_agent_out = ""
         try:
+            browser = launch_chromium(p, headless, proxy=proxy)
             context_kwargs: dict = {
                 "viewport": DESKTOP_VIEWPORT,
                 "locale": f"{params.hl}-{params.gl.upper()}",
@@ -1174,10 +1223,13 @@ def collect_search(
                         emit_progress(on_progress, "organic", "done",
                                       f"{len(organic)} results")
                         emit_progress(on_progress, "related", "running")
-                        related_searches = parse_related_searches(html)
+                        related_searches = _merged_chips(
+                            parse_related_searches(html),
+                            parse_people_also_search_for(html))
                         related_questions = parse_paa(html)
                         ai_overview = parse_ai_overview(html)
                         local_map, local_results = parse_local_pack(html)
+                        module_heads = detect_module_heads(html)
                         emit_progress(on_progress, "related", "done",
                                       f"{len(related_searches)} related, "
                                       f"{len(local_results)} local")
@@ -1235,12 +1287,23 @@ def collect_search(
             if pages_stage_used:
                 emit_progress(on_progress, "pages", "done")
         finally:
+            # Thread hygiene: closing the context releases pages/sockets,
+            # closing the browser releases the DataImpulse thread. Session
+            # survives because sessid+cookies are persisted, not the socket.
             if context is not None:
                 try:
                     state_out = context.storage_state()
                 except Exception:
                     state_out = None
-            browser.close()
+                try:
+                    context.close()
+                except Exception:
+                    pass
+            if browser is not None:
+                try:
+                    browser.close()
+                except Exception:
+                    pass
 
     return {
         "organic": organic[:30],
@@ -1258,5 +1321,6 @@ def collect_search(
         "exit_ip": expected_exit_ip,
         "midrun_ip_changed": midrun_ip_changed,
         "timing_ms": {"search_ms": int((time.time() - started) * 1000),
-                      "web_fallback": web_fallback_used},
+                      "web_fallback": web_fallback_used,
+                      "heads": module_heads},
     }

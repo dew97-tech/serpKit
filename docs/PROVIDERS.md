@@ -45,20 +45,37 @@ competitor/result pages in later enrichment phases) — keep them in `.env`.
 
 ## Config templates (provider-agnostic)
 
+Canonical DataImpulse sticky (recommended — rotating transport + sessid pin,
+same IP ~30min, one sessid per preset):
+
 ```
-PROXY_SERVER=host:port
+PROXY_SERVER=gw.dataimpulse.com:823
 PROXY_USERNAME=base-user
 PROXY_PASSWORD=...
-# suffix templates appended to the username:
-#   Bright Data : -session-{run_id} / -country-{country}
-#   DataImpulse : _session-{run_id} / _country-{country}
-PROXY_SESSION_TEMPLATE=
-PROXY_TARGETING_TEMPLATE=
+PROXY_USERNAME_TEMPLATE={username}__cr.{country};sessid.{run_id}
 ```
 
-`{run_id}` is regenerated per run (sticky for pages 1–3 + solve); the same
-proxy string is passed to CapSolver so the solve shares the browser's IP
-(`ProxyConfig.capsolver_proxy_string`).
+True port-sticky alternative (IP bound to port 10000-20000):
+
+```
+PROXY_SERVER=gw.dataimpulse.com:10001
+PROXY_USERNAME_TEMPLATE={username}__cr.{country};sessttl.25
+```
+
+Do NOT mix `sessid` (ports 823/824) with `sessttl` (ports 10000+) — the
+runner warns (`egress_template_warn`) and `scripts/check_egress.py` validates.
+Legacy suffix templates remain for Bright Data (`-session-{run_id}`).
+
+`{run_id}` is the per-session sessid (sticky for pages 1–3 + Maps + solve);
+the same proxy string is passed to CapSolver so the solve shares the
+browser's IP (`ProxyConfig.capsolver_proxy_string`). Closing the browser
+after each task frees the DataImpulse thread; the session survives because
+sessid+cookies are persisted, not the socket.
+
+Threads: one open connection = one thread (plan limit 2000, else
+`407 THREADS_EXHAUSTED`). The runner backs off `PROXY_THREAD_BACKOFF_S`
+(default 8s) and retries the SAME sessid — a fresh sessid would grab another
+thread. `TRAFFIC_EXHAUSTED` / `NO_RAY` fail fast, never rotate.
 
 ## Candidate providers (IP-layer only, permit Google SERP scraping)
 

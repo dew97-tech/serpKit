@@ -1,17 +1,11 @@
-"""Egress evidence tool (Phase 0) — run with proxy creds in env.
+"""Egress evidence tool — run with proxy creds in env.
 
-Captures what the configured proxy actually does for:
-  1. a neutral target  (http://brdtest.com/myip.json) — proves proxy works
-  2. a Google target   (google.com/search)            — vendor policy check
-and prints status + relevant headers (`x-brd-ip`, `x-brd-err-code`,
-`x-luminati-error`, `server`). This produces the evidence quoted in
-docs/PROVIDERS.md / docs/FEASIBILITY.md for the PM report.
-
-Usage:
-    set BRIGHTDATA_PROXY_HOST=brd.superproxy.io & set BRIGHTDATA_PROXY_PORT=44445
-    set BRIGHTDATA_PROXY_USER=... & set BRIGHTDATA_PROXY_PASSWORD=...
-    python scripts/check_egress.py
-No secrets are printed — only presence flags.
+Probes through the configured PROXY_* egress:
+  1. neutral (ipify) — proves proxy works + shows exit IP
+  2. geo (ipinfo.io/json) — proves country targeting (__cr.xx)
+  3. google search — vendor policy check (200 vs 403/block)
+Validates the sticky shape (sessid on :823/:824, sessttl on 10000+).
+No secrets are printed — only presence flags + redacted usernames.
 """
 from __future__ import annotations
 
@@ -22,7 +16,11 @@ import httpx
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scraper.config import load_proxy_from_env  # noqa: E402
+from scraper.config import (  # noqa: E402
+    load_proxy_from_env,
+    new_run_id,
+    validate_proxy_config,
+)
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -55,17 +53,28 @@ def main() -> int:
         return 1
     print(f"proxy host: {cfg.server} | user set: {bool(cfg.username)} | "
           f"password set: {bool(cfg.password)}")
-    proxy_url = cfg.server if "://" in cfg.server else f"http://{cfg.server}"
-    if cfg.username:
-        from urllib.parse import quote
-
-        proxy_url = proxy_url.replace(
-            "://", f"://{quote(cfg.username, safe='')}:{quote(cfg.password, safe='')}@", 1
-        )
+    shape = validate_proxy_config(cfg)
+    print(f"mode: {shape['mode']} | port: {shape['port']} | "
+          f"sticky_ok: {shape['sticky_ok']}")
+    for warn in shape["warnings"]:
+        print(f"WARN: {warn}")
+    run_id = new_run_id()
+    for label in ("us", "bd", "jp"):
+        try:
+            print(f"  sessid user [{label}]: "
+                  f"{cfg.redacted_username(run_id, label)[:120]}")
+        except Exception as e:  # noqa: BLE001 — template errors surface here
+            print(f"  sessid user [{label}]: ERROR {e}")
+            return 1
+    proxy_url = cfg.httpx_proxy_url(run_id, "us")
     with httpx.Client(proxy=proxy_url, headers=HEADERS,
                       verify=False) as client:  # proxy MITM certs
-        probe(client, "neutral", "http://brdtest.com/myip.json")
+        probe(client, "neutral-ipify", "https://api.ipify.org")
+        probe(client, "geo-ipinfo", "https://ipinfo.io/json")
         probe(client, "google", "https://www.google.com/search?q=egress+check&hl=en&gl=us")
+    print("\nSticky note: re-run within 25min with the same sessid should "
+          "return the same neutral-ipify IP. A change means DataImpulse "
+          "swapped the peer (runner rotates automatically).")
     return 0
 
 

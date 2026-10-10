@@ -11,7 +11,7 @@ with the reliability caveats below.
 | Block | Technique | Reliability |
 |---|---|---|
 | organic top-30 (pages 1–3, `start=0,10,20`) | Playwright, one context, `#search a:has(h3)` structure selectors | High — classic block, stable anchors |
-| `related_searches` (page-1 bottom) | Rendered HTML, heading `関連する検索`/`Related searches` + link fallback | High |
+| `related_searches` (page-1 bottom) and People also search for (mid-page) | Rendered HTML headings + container chip links, merged and deduped; availability is layout and session dependent and self-reported in `timing_ms.heads` | High when served |
 | PAA questions | Static HTML (`data-q` / accordion roles) | High for questions |
 | PAA answers + source links | Click-expand first ≤6 accordions, 800–1600ms jitter, re-read DOM; inline Google errors retried once, kept honest (empty snippet) | Medium — each click is extra traffic; cap depth 2 |
 | AI Overview / AI Mode text (+ cited links for classic) | Bounded wait for the late-rendered panel, scroll nudge, `もっと見る`/`Show more` expansion; classic overviews preferred, AI Mode replies captured with `source:"ai_mode"`; **kept only when `text_blocks` non-empty** | Medium — streams async; AI Overview absent for many queries/sessions by design |
@@ -40,9 +40,10 @@ with the reliability caveats below.
   `/api/health` (`run_timeout_s` plus one minute).
 - Session reuse (`SESSION_REUSE=1`): one sticky residential IP + persisted
   Google cookies are reused across queries while they work. DataImpulse uses
-  the primary sticky mechanism — sticky port 10000 + `sessttl.25`, so the IP
-  rotation and our 25-min cookie TTL stay aligned (docs recommend ≤30 min;
-  `sessid` on the rotating port is only the "average 30 min" alternative).
+  `:823` + `sessid.{run_id}` as the primary sticky mechanism (same IP ~30min,
+  one sessid per preset), so the pin and our 25-min cookie TTL stay aligned;
+  sticky ports `10000+` + `sessttl.25` is the port-based alternative (needs one
+  port per preset).
   Because dead peers are silently replaced mid-window, every run verifies the
   exit IP through the session's own proxy (`SESSION_IP_CHECK=1`) and rotates
   the session when it changed. Between pages a lightweight ipify probe
@@ -68,6 +69,21 @@ with the reliability caveats below.
 - Egress: provider-agnostic proxy config. **Bright Data proxy zones cannot
   target Google** (vendor policy: DC/ISP → 403; Residential/Mobile →
   superproxy bypass) — guard + evidence tool in `docs/PROVIDERS.md`.
+
+## Enrichment module availability (verified 2026-10)
+
+People also ask, People also search for, and bottom Related searches are
+chosen by Google per query, layout, and session bucket. A logged-out
+depersonalized desktop profile can receive none of them (verified for a
+price query across the AI Mode layout, the classic Web layout with `udm=14`,
+and after full-page scrolling). The same profile does receive them for many
+other queries (for example pizza, dentist, and tax queries: 8 related and
+4 PAA). No request parameter forces these modules; logged-in or mobile
+profiles get a richer mix by design, which is out of scope while the
+collector keeps a desktop user agent. Bottom Related searches and mid-page
+People also search for are merged into `related_searches[]`, and every run
+records which headings were present in `timing_ms.heads` (paa, pasf,
+related) so absence is provable per run.
 
 ## Rate limits (expectation, no proxy)
 

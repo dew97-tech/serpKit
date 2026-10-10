@@ -92,7 +92,7 @@ All variables are optional. See `.env.example` for the full list.
 | `CAPSOLVER_API_KEY` | Enables CAPTCHA solving |
 | `CAPSOLVER_PROXY_SERVER/USERNAME/PASSWORD` | Route solver API calls when the network blocks capsolver.com |
 | `PROXY_SERVER/USERNAME/PASSWORD` | Residential egress for Google |
-| `PROXY_USERNAME_TEMPLATE` | Full username template, for example `{username}__cr.{country};sessid.{run_id};sessttl.25` |
+| `PROXY_USERNAME_TEMPLATE` | Full username template, canonical sticky `{username}__cr.{country};sessid.{run_id}` on `:823` |
 | `SESSION_REUSE`, `SESSION_TTL_S`, `SESSION_WARMUP`, `SESSION_IP_CHECK`, `RUN_RETRY` | Session lifecycle controls |
 | `RUN_TIMEOUT_S` | Per-run wall-clock budget in seconds, default 600 |
 | `SOLVE_MAX_PER_RUN`, `SOLVE_MIN_INTERVAL_S`, `SOLVE_TIMEOUT_S` | Solver budget and limits |
@@ -117,6 +117,9 @@ All variables are optional. See `.env.example` for the full list.
   rejects for fresh automated sessions. Questions are collected; answers stay
   empty rather than guessing.
 - AI Overview availability varies per query and session by Google design.
+- People also ask, People also search for, and Related searches are layout
+  and session dependent; runs record which of them were served in
+  `timing_ms.heads`.
 - CAPTCHA solve acceptance is probabilistic. Sessions amortize it to roughly
   one solve per 25 minute window.
 - Selector upkeep is ongoing. Zero-result runs auto-capture HTML for repairs.

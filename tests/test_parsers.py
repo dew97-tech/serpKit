@@ -9,12 +9,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from scraper.maps import parse_maps_cards  # noqa: E402
 from scraper.serp import (  # noqa: E402
+    _merged_chips,
     cite_to_url,
+    detect_module_heads,
     organic_off_query,
     parse_ai_overview,
     parse_local_pack,
     parse_organic,
     parse_paa,
+    parse_people_also_search_for,
     parse_related_searches,
 )
 from scraper.textutils import parse_count  # noqa: E402
@@ -319,6 +322,52 @@ class TestMapsRatingRow(unittest.TestCase):
         self.assertEqual(card["address"], "1435 Broadway")
         self.assertEqual(card["hours"], "Open ⋅ Closes 5 AM")
         self.assertEqual(card["phone"], "(212) 555-1111")
+
+
+PASF_HTML = """
+<html><body>
+  <div class="mod"><h2>People also search for</h2>
+    <div>
+      <a href="/search?q=Samsung+galaxy+s26+price+in+bangladesh&hl=en">Samsung galaxy s26 price in bangladesh</a>
+      <a href="/search?q=Samsung+Galaxy+S26+Plus+price+in+Bangladesh&hl=en">Samsung Galaxy S26 Plus price in Bangladesh</a>
+      <a href="/search?q=x&start=10">2</a>
+      <a href="/search?q=x&udm=2">Images</a>
+    </div>
+  </div>
+</body></html>
+"""
+
+
+class TestPeopleAlsoSearchFor(unittest.TestCase):
+    def test_extracts_and_filters(self):
+        self.assertEqual(
+            parse_people_also_search_for(PASF_HTML),
+            ["Samsung galaxy s26 price in bangladesh",
+             "Samsung Galaxy S26 Plus price in Bangladesh"])
+
+    def test_absent(self):
+        self.assertEqual(
+            parse_people_also_search_for("<html><body>x</body></html>"), [])
+
+
+class TestMergedChips(unittest.TestCase):
+    def test_dedupe_and_cap(self):
+        self.assertEqual(_merged_chips(["a", "b"], ["b", "c"]),
+                         ["a", "b", "c"])
+        self.assertEqual(len(_merged_chips([str(i) for i in range(10)])), 8)
+
+
+class TestModuleHeads(unittest.TestCase):
+    def test_detects(self):
+        heads = detect_module_heads(
+            "<html>People also search for, Related searches, People also ask</html>")
+        self.assertTrue(heads["paa"])
+        self.assertTrue(heads["pasf"])
+        self.assertTrue(heads["related"])
+
+    def test_empty(self):
+        heads = detect_module_heads("<html>nothing here</html>")
+        self.assertEqual(heads, {"paa": False, "pasf": False, "related": False})
 
 
 if __name__ == "__main__":

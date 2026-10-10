@@ -181,7 +181,16 @@ class ProxyConfig:
     The templates are appended to the username, so one config works across
     providers whose conventions differ (this is the "IP layer only" contract):
       - Bright Data:      "-session-{run_id}" / "-country-{country}"
-      - DataImpulse:      "_session-{run_id}" / "_country-{country}"
+      - DataImpulse:      "{username}__cr.{country};sessid.{run_id}" via
+        username_template (canonical sticky form on :823/:824).
+
+    Canonical DataImpulse sticky (recommended):
+      PROXY_SERVER=gw.dataimpulse.com:823
+      PROXY_USERNAME_TEMPLATE={username}__cr.{country};sessid.{run_id}
+    True port-sticky alternative:
+      PROXY_SERVER=gw.dataimpulse.com:10001
+      PROXY_USERNAME_TEMPLATE={username}__cr.{country};sessttl.25
+    Do NOT mix sessid (rotating ports) with sessttl (sticky ports).
 
     Some providers need a different parameter ORDER (e.g. DataImpulse:
     `login__cr.us;sessid.x`), which per-suffix templates can't express.
@@ -226,6 +235,63 @@ class ProxyConfig:
 
     def is_brightdata(self) -> bool:
         return BD_PROXY_HOST_MARKER in self.server
+
+    # -- DataImpulse helpers (sticky vs rotating) --------------------------
+
+    def _hostport(self) -> str:
+        srv = self.server.strip()
+        for scheme in ("http://", "https://", "socks5://", "socks5h://"):
+            if srv.lower().startswith(scheme):
+                srv = srv[len(scheme):]
+                break
+        return srv.split("/")[0]
+
+    def port(self) -> int | None:
+        """Port from PROXY_SERVER, or None when absent/unparseable."""
+        hostport = self._hostport()
+        if ":" not in hostport:
+            return None
+        try:
+            return int(hostport.rsplit(":", 1)[1])
+        except ValueError:
+            return None
+
+    def is_dataimpulse(self) -> bool:
+        return "dataimpulse" in self._hostport().lower()
+
+    def httpx_proxy_url(self, run_id: str, country: str = "") -> str:
+        """Authenticated proxy URL for httpx (ip checks, autocomplete)."""
+        from urllib.parse import quote as _quote
+
+        server = (self.server if "://" in self.server
+                  else f"http://{self.server}")
+        user = self.build_username(run_id, country)
+        auth = f"{_quote(user, safe='')}:{_quote(self.password, safe='')}@"
+        return server.replace("://", f"://{auth}", 1)
+
+    def redacted_username(self, run_id: str, country: str = "") -> str:
+        """Username for logs (never includes the password)."""
+        try:
+            return self.build_username(run_id, country)
+        except Exception:
+            return "<unformattable-template>"
+
+    def describe_mode(self) -> str:
+        """Short mode label: sticky-sessid | sticky-port | pure-rotating."""
+        port = self.port()
+        blob = f"{self.username_template} {self.session_template} " \
+               f"{self.targeting_template}".lower()
+        has_sessid = "sessid" in blob
+        has_sessttl = "sessttl" in blob
+        if port in (823, 824):
+            return "sticky-sessid" if has_sessid else "pure-rotating"
+        if port is not None and 10000 <= port <= 20000:
+            return "sticky-port"
+        if has_sessid:
+            return "sticky-sessid"
+        if has_sessttl:
+            return "sticky-port"
+        return "custom"
 
 
 def load_proxy_from_env() -> ProxyConfig | None:
@@ -276,6 +342,51 @@ def validate_proxy_for_google(proxy: ProxyConfig | None) -> tuple[bool, str]:
             "evidence-only test."
         )
     return True, ""
+
+
+def validate_proxy_config(proxy: ProxyConfig | None) -> dict:
+    """Sticky-shape check for DataImpulse (never includes secrets).
+
+    Returns {"mode", "port", "sticky_ok", "warnings": [...]}. Pure-rotating
+    (823/824 without sessid) warns because pages+Maps+solve would hop IPs.
+    Mixing sessid (rotating ports) with sessttl (sticky ports) warns because
+    DataImpulse documents them for different ports.
+    """
+    if proxy is None:
+        return {"mode": "none", "port": None, "sticky_ok": False,
+                "warnings": ["no egress proxy configured"]}
+    mode = proxy.describe_mode()
+    port = proxy.port()
+    warnings: list[str] = []
+    blob = f"{proxy.username_template} {proxy.session_template} " \
+           f"{proxy.targeting_template}".lower()
+    has_sessid = "sessid" in blob
+    has_sessttl = "sessttl" in blob
+    if has_sessid and has_sessttl:
+        warnings.append("username mixes sessid (ports 823/824) with sessttl "
+                        "(ports 10000-20000); pick one canonical form")
+    if port in (823, 824) and not has_sessid:
+        warnings.append(f"port {port} without sessid is pure-rotating: each "
+                        "request may exit a different IP, breaking session "
+                        "cookies; add __cr.{country};sessid.{run_id}")
+    if port is not None and 10000 <= port <= 20000 and has_sessid:
+        warnings.append(f"port {port} is sticky-port range but username has "
+                        "sessid (rotating-port param); use sessttl.N instead")
+    if port is not None and 10000 <= port <= 20000 and not has_sessttl:
+        warnings.append(f"port {port} is sticky-port range; consider adding "
+                        "sessttl.25 to pin rotation interval (default 30min)")
+    if "__cr" not in blob and "cr." not in blob:
+        warnings.append("no __cr.{country} targeting in username; geo falls "
+                        "back to pool default (see docs/PROVIDERS.md)")
+    for costly in ("city.", "state.", "zip.", "asn.", "anon."):
+        if costly in blob:
+            warnings.append(f"username has {costly.rstrip('.')} targeting: "
+                            "billed 2x / smaller pool; keep __cr only unless "
+                            "city precision is required")
+            break
+    sticky_ok = mode in ("sticky-sessid", "sticky-port")
+    return {"mode": mode, "port": port, "sticky_ok": sticky_ok,
+            "warnings": warnings}
 
 
 def load_capsolver_proxy() -> str | None:

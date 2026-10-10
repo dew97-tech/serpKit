@@ -129,8 +129,10 @@ def collect_maps(
     errors: list[dict] = []
     try:
         with sync_playwright() as p:
-            browser = launch_chromium(p, headless, proxy=proxy)
+            browser = None
+            context = None
             try:
+                browser = launch_chromium(p, headless, proxy=proxy)
                 context_kwargs: dict = {
                     "viewport": MAPS_VIEWPORT,
                     "locale": f"{params.hl}-{params.gl.upper()}",
@@ -152,9 +154,22 @@ def collect_maps(
                     html = page.content()
                     _dump_maps_html(html, page.url)
                 finally:
-                    page.close()
+                    try:
+                        page.close()
+                    except Exception:
+                        pass
             finally:
-                browser.close()
+                # Same thread hygiene as search: context first, then browser.
+                if context is not None:
+                    try:
+                        context.close()
+                    except Exception:
+                        pass
+                if browser is not None:
+                    try:
+                        browser.close()
+                    except Exception:
+                        pass
     except Exception as e:  # noqa: BLE001 — best-effort surface
         return [], [{"code": "maps_error", "message": str(e)[:300]}]
 
