@@ -11,7 +11,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from scraper.runner import _has_run_timeout, _is_blocked, _session_key  # noqa: E402
+from scraper.config import ProxyConfig  # noqa: E402
+from scraper.runner import (  # noqa: E402
+    _has_run_timeout,
+    _is_blocked,
+    _midrun_ip_check_enabled,
+    _session_ip_check_light,
+    _session_key,
+)
 from scraper.schemas import ScrapeResult  # noqa: E402
 from scraper.sessions import SessionManager, session_ttl_s  # noqa: E402
 
@@ -119,6 +126,22 @@ class TestRunnerHelpers(unittest.TestCase):
         other = ScrapeResult(query="q", locale={},
                              errors=[{"code": "captcha_v2"}])
         self.assertFalse(_has_run_timeout(other))
+
+    def test_light_ip_check_returns_none_on_failure(self):
+        cfg = ProxyConfig(server="127.0.0.1:9", username="u", password="p")
+        self.assertIsNone(_session_ip_check_light(cfg, "s1", "us"))
+
+    def test_midrun_ip_check_default(self):
+        saved = os.environ.pop("SESSION_MIDRUN_IP_CHECK", None)
+        try:
+            self.assertTrue(_midrun_ip_check_enabled())
+            os.environ["SESSION_MIDRUN_IP_CHECK"] = "0"
+            self.assertFalse(_midrun_ip_check_enabled())
+        finally:
+            if saved is None:
+                os.environ.pop("SESSION_MIDRUN_IP_CHECK", None)
+            else:
+                os.environ["SESSION_MIDRUN_IP_CHECK"] = saved
 
 
 if __name__ == "__main__":

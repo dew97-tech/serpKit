@@ -126,6 +126,16 @@ async function loadSession() {
   } catch { /* session pill is progressive enhancement */ }
 }
 
+function reactSession(detail) {
+  const pill = $("sessionPill");
+  if (!detail) return;
+  pill.classList.remove("pill-warn");
+  $("sessionText").textContent = detail.includes("(new)")
+    ? `${t("session")} ${t("sessionNew")}`
+    : t("session");
+  pill.title = detail;
+}
+
 /* --- progress checklist driven by real server events --- */
 
 function stagesForRun(params) {
@@ -199,8 +209,14 @@ function runStreamed(params) {
       let msg;
       try { msg = JSON.parse(ev.data); } catch { return; }
       if (msg.type === "stage") {
-        if (msg.stage === "note") renderNote(msg.detail || "");
-        else updateStage(msg.stage, msg.state, msg.detail || "");
+        if (msg.stage === "note") {
+          renderNote(msg.detail || "");
+        } else {
+          updateStage(msg.stage, msg.state, msg.detail || "");
+          if (msg.stage === "session" && msg.state === "done") {
+            reactSession(msg.detail || "");
+          }
+        }
       } else if (msg.type === "result") {
         finish(null);
         resolve(msg.result);
@@ -363,15 +379,14 @@ form.addEventListener("submit", async (e) => {
       data = await runStreamed(params);
     }
     renderAll(data);
-    loadSession();
   } catch (err) {
     const msg = err && err.name === "AbortError" ? t("timeout") : String(err && err.message || err);
     setStatus("err", esc(t("stNetErr", msg)));
   } finally {
     running = false;
     setFormDisabled(false);
-    // Preserve the keyword the user actually submitted.
     $("q").value = submittedQuery;
+    loadSession();
   }
 });
 

@@ -1015,6 +1015,8 @@ def fetch_search_page(
                               f"Solving CAPTCHA (attempt {attempts + 1} "
                               f"of {policy.max_solves})")
                 if policy.solve(page, block):
+                    emit_progress(on_progress, "note", "note",
+                                  f"CAPTCHA cleared (attempt {attempts + 1})")
                     try:
                         page.wait_for_selector("#search", timeout=20_000)
                     except Exception:
@@ -1095,6 +1097,8 @@ def collect_search(
     warmup: bool = False,
     on_progress=None,
     deadline: float | None = None,
+    ip_check=None,
+    expected_exit_ip: str = "",
 ) -> dict:
     """Collect pages 1..N in ONE context (session consistency). Partial contract.
 
@@ -1111,6 +1115,7 @@ def collect_search(
     errors: list[dict] = []
     pages_fetched = 0
     web_fallback_used = False
+    midrun_ip_changed = False
 
     with sync_playwright() as p:
         browser = launch_chromium(p, headless, proxy=proxy)
@@ -1143,6 +1148,14 @@ def collect_search(
                 try:
                     if deadline and time.time() > deadline:
                         raise RunDeadlineExceeded()
+                    if ip_check is not None and i > 0:
+                        current_ip = ip_check()
+                        if (current_ip and expected_exit_ip
+                                and current_ip != expected_exit_ip):
+                            midrun_ip_changed = True
+                            expected_exit_ip = current_ip
+                            emit_progress(on_progress, "note", "note",
+                                          "Exit IP changed mid-run, continuing on new IP")
                     if i == 0:
                         emit_progress(on_progress, "organic", "running",
                                       f"page 1 of {pages}")
@@ -1242,6 +1255,8 @@ def collect_search(
         "errors": errors,
         "storage_state": state_out,
         "user_agent": user_agent_out,
+        "exit_ip": expected_exit_ip,
+        "midrun_ip_changed": midrun_ip_changed,
         "timing_ms": {"search_ms": int((time.time() - started) * 1000),
                       "web_fallback": web_fallback_used},
     }

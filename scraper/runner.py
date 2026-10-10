@@ -57,13 +57,17 @@ def _ip_check_enabled() -> bool:
     return os.environ.get("SESSION_IP_CHECK", "1").lower() not in ("0", "false", "no", "")
 
 
+def _midrun_ip_check_enabled() -> bool:
+    return os.environ.get("SESSION_MIDRUN_IP_CHECK", "1").lower() not in ("0", "false", "no", "")
+
+
 def _session_ip_check(
     proxy_cfg: ProxyConfig, sessid: str, country: str
 ) -> dict | None:
     """Exit-IP pin check through the session's own proxy.
 
     Residential peers can die mid-window and DataImpulse silently swaps in a
-    new IP — cookies would then belong to a different IP. Returns
+    new IP. Cookies would then belong to a different IP. Returns
     {"ip", "geo"} (never raises; None when the check is unavailable).
     """
     try:
@@ -80,6 +84,25 @@ def _session_ip_check(
             return None
         geo = ", ".join(p for p in (data.get("city"), data.get("country")) if p)
         return {"ip": ip, "geo": geo}
+    except Exception:
+        return None
+
+
+def _session_ip_check_light(
+    proxy_cfg: ProxyConfig, sessid: str, country: str
+) -> str | None:
+    """Cheap exit-IP check between pages (ipify, a few bytes)."""
+    try:
+        user = proxy_cfg.build_username(sessid, country)
+        server = (proxy_cfg.server if "://" in proxy_cfg.server
+                  else f"http://{proxy_cfg.server}")
+        auth = f"{quote(user, safe='')}:{quote(proxy_cfg.password, safe='')}@"
+        proxy_url = server.replace("://", f"://{auth}", 1)
+        timeout = httpx.Timeout(connect=4.0, read=6.0, write=6.0, pool=4.0)
+        with httpx.Client(proxy=proxy_url, timeout=timeout) as client:
+            resp = client.get("https://api.ipify.org")
+        ip = resp.text.strip()
+        return ip or None
     except Exception:
         return None
 
@@ -146,7 +169,9 @@ def _execute_scrape(
     storage_state: dict | None,
     warmup: bool = False,
     on_progress=None,
-) -> tuple[ScrapeResult, dict | None, bool, str]:
+    ip_check=None,
+    expected_exit_ip: str = "",
+) -> tuple[ScrapeResult, dict | None, bool, str, str]:
     started = time.time()
     deadline = started + run_timeout_s()
     timing: dict = {}
@@ -181,12 +206,14 @@ def _execute_scrape(
     search = collect_search(params, pages=pages, proxy=playwright_proxy,
                             headless=headless, policy=policy,
                             storage_state=storage_state, warmup=warmup,
-                            on_progress=on_progress, deadline=deadline)
+                            on_progress=on_progress, deadline=deadline,
+                            ip_check=ip_check, expected_exit_ip=expected_exit_ip)
     timing.update(search.pop("timing_ms", {}))
     errors.extend(search.pop("errors", []))
     solves = search.pop("solves", [])
     state_out = search.pop("storage_state", None)
     ua_out = search.pop("user_agent", "")
+    exit_ip_out = search.pop("exit_ip", expected_exit_ip)
 
     # 3. Maps (browser, best-effort).
     maps_results: list[dict] = []
@@ -230,7 +257,8 @@ def _execute_scrape(
         mock=False,
     )
     emit_progress(on_progress, "finalize", "done")
-    return result, state_out, _is_blocked(result), str(ua_out or "")
+    return (result, state_out, _is_blocked(result), str(ua_out or ""),
+            str(exit_ip_out or ""))
 
 
 def run_full_scrape(
@@ -252,9 +280,9 @@ def run_full_scrape(
     reload_env_if_changed()
     if not (session_reuse_enabled() and proxy_cfg is not None):
         emit_progress(on_progress, "session", "done", "session reuse disabled")
-        result, _, _, _ = _execute_scrape(params, pages, include_maps, proxy_cfg,
-                                          headless, solve, new_run_id(), None,
-                                          on_progress=on_progress)
+        result, _, _, _, _ = _execute_scrape(params, pages, include_maps, proxy_cfg,
+                                             headless, solve, new_run_id(), None,
+                                             on_progress=on_progress)
         return result
 
     emit_progress(on_progress, "session", "running")
@@ -286,20 +314,35 @@ def run_full_scrape(
         emit_progress(on_progress, "session", "done",
                       (session.exit_geo or "ready")
                       + (" (new)" if fresh else ""))
-        result, state_out, blocked, ua_out = _execute_scrape(
+        midrun_check = None
+        if _midrun_ip_check_enabled():
+            midrun_check = lambda: _session_ip_check_light(
+                proxy_cfg, session.sessid, country)
+        result, state_out, blocked, ua_out, exit_ip_out = _execute_scrape(
             params, pages, include_maps, proxy_cfg, headless, solve,
             session.sessid, session.state, warmup=warmup,
-            on_progress=on_progress)
+            on_progress=on_progress, ip_check=midrun_check,
+            expected_exit_ip=session.exit_ip)
+        if exit_ip_out:
+            session.exit_ip = exit_ip_out
 
         if blocked and _run_retry_enabled() and not _has_run_timeout(result):
             emit_progress(on_progress, "note", "note",
                           "Blocked, retrying with a fresh session")
             manager.clear(key)
             session = manager.create(key)
-            result, state_out, blocked, ua_out = _execute_scrape(
+            if _ip_check_enabled():
+                info = _session_ip_check(proxy_cfg, session.sessid, country)
+                if info:
+                    session.exit_ip = info["ip"]
+                    session.exit_geo = info["geo"]
+            result, state_out, blocked, ua_out, exit_ip_out = _execute_scrape(
                 params, pages, include_maps, proxy_cfg, headless, solve,
                 session.sessid, None, warmup=_warmup_enabled(),
-                on_progress=on_progress)
+                on_progress=on_progress, ip_check=midrun_check,
+                expected_exit_ip=session.exit_ip)
+            if exit_ip_out:
+                session.exit_ip = exit_ip_out
 
         session.runs += 1
         session.last_used = time.time()

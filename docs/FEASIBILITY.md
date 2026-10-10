@@ -45,7 +45,9 @@ with the reliability caveats below.
   `sessid` on the rotating port is only the "average 30 min" alternative).
   Because dead peers are silently replaced mid-window, every run verifies the
   exit IP through the session's own proxy (`SESSION_IP_CHECK=1`) and rotates
-  the session when it changed. Solves: 3 in-run attempts, each retry reloads
+  the session when it changed. Between pages a lightweight ipify probe
+  (`SESSION_MIDRUN_IP_CHECK=1`, a few bytes) emits a progress note when the
+  exit IP changes mid-run. Solves: 3 in-run attempts, each retry reloads
   the URL for a fresh Enterprise challenge instead of OCR-ing the escalated
   image captcha; a run that ends without organic (captcha or bot-tarpit
   redirect) retries once with a fresh session (`RUN_RETRY=1`).
