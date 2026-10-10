@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="'Segoe UI',Arial,sans-serif">
+<title>Fig 1 — Full run pipeline</title>
+<rect width="1280" height="720" fill="#fff"/>
+
+<g fill="none" stroke="#111" stroke-width="2.5">
+<rect x="60" y="280" width="170" height="90" rx="12"/>
+<rect x="290" y="280" width="170" height="90" rx="12"/>
+<rect x="520" y="280" width="170" height="90" rx="12"/>
+<rect x="750" y="280" width="170" height="90" rx="12"/>
+<rect x="980" y="280" width="170" height="90" rx="12"/>
+<rect x="500" y="480" width="210" height="80" rx="12"/>
+</g>
+
+<g stroke="#E67E22" stroke-width="4" fill="none" stroke-linecap="round">
+<path d="M230 325 L282 325"/><path d="M272 317 L284 325 L272 333"/>
+<path d="M460 325 L512 325"/><path d="M502 317 L514 325 L502 333"/>
+<path d="M690 325 L742 325"/><path d="M732 317 L744 325 L732 333"/>
+<path d="M920 325 L972 325"/><path d="M962 317 L974 325 L962 333"/>
+</g>
+
+<g stroke="#2A7FBE" stroke-width="3" fill="none" stroke-dasharray="8 7" stroke-linecap="round">
+<path d="M605 372 L605 478"/>
+<path d="M598 462 L605 478 L612 462"/>
+</g>
+
+<g text-anchor="middle">
+<text x="145" y="320" font-size="21" font-weight="600" fill="#111">Query</text>
+<text x="145" y="348" font-size="13" fill="#555">q · preset · location</text>
+
+<text x="375" y="320" font-size="21" font-weight="600" fill="#111">Autocomplete</text>
+<text x="375" y="348" font-size="13" fill="#555">plain HTTP · JSONP</text>
+
+<text x="605" y="320" font-size="21" font-weight="600" fill="#111">Chromium</text>
+<text x="605" y="348" font-size="13" fill="#555">SERP pages 1–3</text>
+
+<text x="835" y="320" font-size="21" font-weight="600" fill="#111">Parsers</text>
+<text x="835" y="348" font-size="13" fill="#555">organic · PAA · AI · local</text>
+
+<text x="1065" y="320" font-size="21" font-weight="600" fill="#111">Contract JSON</text>
+<text x="1065" y="348" font-size="13" fill="#555">scraper/schemas.py</text>
+
+<text x="605" y="517" font-size="21" font-weight="600" fill="#111">Maps</text>
+<text x="605" y="543" font-size="13" fill="#555">best-effort · skippable</text>
+</g>
+
+<g text-anchor="middle" font-size="13" fill="#111">
+<text x="260" y="316">q</text>
+<text x="490" y="316">fetch</text>
+<text x="720" y="316">parse</text>
+<text x="950" y="316">finalize</text>
+</g>
+
+<text x="620" y="436" font-size="13" fill="#2A7FBE">optional</text>
+<text x="605" y="592" text-anchor="middle" font-size="13" fill="#666">never fails the run</text>
+
+<g>
+<path d="M1041 238 Q1022 250 1016 270" fill="none" stroke="#111" stroke-width="5" stroke-linecap="round"/>
+<rect x="1008" y="272" width="16" height="14" fill="#111"/>
+<ellipse cx="1065" cy="225" rx="26" ry="30" fill="#111"/>
+<circle cx="1057" cy="216" r="5" fill="#fff"/>
+<circle cx="1073" cy="216" r="5" fill="#fff"/>
+<path d="M1057 255 L1052 278 M1073 255 L1078 278" stroke="#111" stroke-width="4" stroke-linecap="round"/>
+</g>
+<text x="1065" y="168" text-anchor="middle" font-size="15" fill="#2A7FBE">one contract every run</text>
+
+<text x="60" y="645" font-size="14" fill="#666">One browser context per run · pages 1–3 deduped · sessions reused ≤25 min (Fig. 3)</text>
+<text x="60" y="668" font-size="14" fill="#666">Live stages: /api/scrape/stream (SSE)</text>
+</svg>

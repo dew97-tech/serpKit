@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="'Segoe UI',Arial,sans-serif">
+<title>Fig 5 — Contract to seo_api consumers</title>
+<rect width="1280" height="720" fill="#fff"/>
+
+<g fill="none" stroke="#111" stroke-width="2.5">
+<rect x="80" y="120" width="460" height="520" rx="14"/>
+<rect x="740" y="120" width="460" height="520" rx="14"/>
+</g>
+
+<text x="110" y="168" font-size="22" font-weight="600" fill="#111">Frozen contract</text>
+<text x="110" y="192" font-size="13" fill="#666" font-family="Consolas,'Courier New',monospace">scraper/schemas.py</text>
+<text x="770" y="168" font-size="22" font-weight="600" fill="#111">seo_api consumers</text>
+<text x="770" y="192" font-size="13" fill="#666" font-family="Consolas,'Courier New',monospace">docs/MAPPING.md</text>
+
+<g font-family="Consolas,'Courier New',monospace" font-size="15" fill="#111">
+<text x="110" y="232">organic[]</text>
+<text x="110" y="284">related_searches[]</text>
+<text x="110" y="336">related_questions[]</text>
+<text x="110" y="388">ai_overview{}</text>
+<text x="110" y="440">local_map + local_results[]</text>
+<text x="110" y="492">autocomplete[]</text>
+<text x="110" y="544">maps_local_results[]</text>
+<text x="110" y="596">has_next</text>
+</g>
+
+<g font-size="15" fill="#111">
+<text x="770" y="232">competitor_urls · backlinks</text>
+<text x="770" y="284">prompt var: related_searches</text>
+<text x="770" y="336">RetrieveKeywordAdditionalDataCommand</text>
+<text x="770" y="388">ai_overview_data</text>
+<text x="770" y="440">meo_data · MEO flow</text>
+<text x="770" y="492">prompt var: suggestions</text>
+<text x="770" y="544">maps / MEO flow</text>
+<text x="770" y="596">crawl continuation</text>
+</g>
+
+<g stroke="#E67E22" stroke-width="5" fill="none" stroke-linecap="round">
+<path d="M545 380 L725 380"/>
+<path d="M712 370 L728 380 L712 390"/>
+</g>
+<text x="636" y="360" text-anchor="middle" font-size="13" fill="#111">same field names</text>
+
+<g>
+<ellipse cx="636" cy="505" rx="28" ry="32" fill="#111"/>
+<circle cx="628" cy="496" r="5" fill="#fff"/>
+<circle cx="644" cy="496" r="5" fill="#fff"/>
+<path d="M628 537 L623 566 M644 537 L649 566" stroke="#111" stroke-width="4" stroke-linecap="round"/>
+<path d="M658 505 L676 488" stroke="#111" stroke-width="4" stroke-linecap="round"/>
+<rect x="672" y="466" width="30" height="20" fill="#111"/>
+<path d="M687 486 L687 462" stroke="#111" stroke-width="4" stroke-linecap="round"/>
+</g>
+<text x="636" y="446" text-anchor="middle" font-size="14" fill="#2A7FBE">stamped frozen</text>
+</svg>

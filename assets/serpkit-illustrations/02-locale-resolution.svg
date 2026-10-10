@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="'Segoe UI',Arial,sans-serif">
+<title>Fig 2 — Locale resolution</title>
+<rect width="1280" height="720" fill="#fff"/>
+
+<g fill="none" stroke="#111" stroke-width="2.5">
+<rect x="70" y="170" width="250" height="78" rx="10"/>
+<rect x="70" y="268" width="250" height="78" rx="10"/>
+<rect x="70" y="366" width="250" height="78" rx="10"/>
+<rect x="70" y="500" width="250" height="78" rx="10"/>
+</g>
+
+<g stroke="#111" stroke-width="2" fill="none">
+<path d="M320 209 L380 209"/>
+<path d="M320 307 L380 307"/>
+<path d="M320 405 L380 405"/>
+<path d="M320 539 L380 539"/>
+<path d="M380 209 L380 539"/>
+</g>
+<g stroke="#E67E22" stroke-width="4" fill="none" stroke-linecap="round">
+<path d="M380 340 L420 340"/>
+<path d="M410 332 L422 340 L410 348"/>
+</g>
+
+<g fill="none" stroke="#111" stroke-width="2.5">
+<rect x="430" y="280" width="250" height="120" rx="12"/>
+<rect x="800" y="280" width="400" height="120" rx="12"/>
+</g>
+<g stroke="#E67E22" stroke-width="4" fill="none" stroke-linecap="round">
+<path d="M680 340 L790 340"/>
+<path d="M780 332 L792 340 L780 348"/>
+</g>
+
+<text x="95" y="203" font-size="18" font-weight="600" fill="#111">us</text>
+<text x="95" y="230" font-size="13" fill="#555">hl=en · gl=us · www.google.com</text>
+
+<text x="95" y="301" font-size="18" font-weight="600" fill="#111">japan</text>
+<text x="95" y="328" font-size="13" fill="#555">hl=ja · gl=jp · www.google.co.jp</text>
+
+<text x="95" y="399" font-size="18" font-weight="600" fill="#111">bangladesh</text>
+<text x="95" y="426" font-size="13" fill="#555">hl=en · gl=bd · www.google.com.bd</text>
+
+<text x="95" y="533" font-size="18" font-weight="600" fill="#111">overrides</text>
+<text x="95" y="560" font-size="13" fill="#555">location=Dhaka · pages=3 · hl/gl</text>
+
+<text x="130" y="150" font-size="14" fill="#666">presets</text>
+
+<g text-anchor="middle">
+<text x="555" y="318" font-size="20" font-weight="600" fill="#111">Resolve + encode</text>
+<text x="555" y="346" font-size="13" fill="#555">preset → canonical location</text>
+<text x="555" y="368" font-size="13" fill="#555">build uule (w+ base64)</text>
+
+<text x="1000" y="318" font-size="20" font-weight="600" fill="#111">Search URL</text>
+</g>
+<g font-family="Consolas,'Courier New',monospace" font-size="13" fill="#111">
+<text x="830" y="346">www.google.com.bd/search</text>
+<text x="830" y="368">?hl=en&amp;gl=bd&amp;start=0</text>
+<text x="830" y="390">&amp;pws=0&amp;filter=0&amp;uule=w+…</text>
+</g>
+
+<text x="401" y="330" text-anchor="middle" font-size="12" fill="#111">merge</text>
+<text x="736" y="330" text-anchor="middle" font-size="12" fill="#111">uule</text>
+
+<g>
+<ellipse cx="555" cy="245" rx="24" ry="28" fill="#111"/>
+<circle cx="547" cy="237" r="5" fill="#fff"/>
+<circle cx="563" cy="237" r="5" fill="#fff"/>
+<path d="M547 273 L542 278 M563 273 L568 278" stroke="#111" stroke-width="4" stroke-linecap="round"/>
+<path d="M579 240 L600 220" stroke="#111" stroke-width="4" stroke-linecap="round"/>
+<path d="M600 220 L618 208" stroke="#111" stroke-width="3" stroke-linecap="round"/>
+</g>
+<text x="555" y="192" text-anchor="middle" font-size="15" fill="#2A7FBE">pick locale</text>
+
+<text x="800" y="432" font-size="14" fill="#2A7FBE">pws=0 · filter=0 → reproducible snapshots</text>
+<text x="800" y="458" font-size="14" fill="#666">location=Dhaka auto-switches gl to bd</text>
+</svg>

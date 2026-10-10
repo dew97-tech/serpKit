@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="'Segoe UI',Arial,sans-serif">
+<title>Fig 6 — Failure handling and recovery</title>
+<rect width="1280" height="720" fill="#fff"/>
+
+<text x="90" y="118" font-size="14" fill="#666">error state</text>
+<text x="690" y="118" font-size="14" fill="#666">action</text>
+
+<g fill="none" stroke="#111" stroke-width="2.5">
+<rect x="90" y="150" width="360" height="70" rx="12"/>
+<rect x="90" y="280" width="360" height="70" rx="12"/>
+<rect x="90" y="410" width="360" height="70" rx="12"/>
+<rect x="90" y="540" width="360" height="70" rx="12"/>
+</g>
+<g font-family="Consolas,'Courier New',monospace" font-size="14" fill="#111">
+<text x="110" y="191">pages_fetched = 0  ∧ blocked</text>
+<text x="110" y="321">THREADS_EXHAUSTED</text>
+<text x="110" y="451">TRAFFIC_EXHAUSTED / NO_RAY / PORT_*</text>
+<text x="110" y="581">run_timeout</text>
+</g>
+
+<g fill="none" stroke-width="2.5">
+<rect x="690" y="150" width="470" height="70" rx="12" stroke="#111"/>
+<rect x="690" y="280" width="470" height="70" rx="12" stroke="#111"/>
+<rect x="690" y="410" width="470" height="70" rx="12" stroke="#D43D2A"/>
+<rect x="690" y="540" width="470" height="70" rx="12" stroke="#2A7FBE"/>
+</g>
+<g>
+<text x="710" y="180" font-size="17" font-weight="600" fill="#111">Retry once · fresh session</text>
+<text x="710" y="204" font-size="13" fill="#555">RUN_RETRY=1 · quota errors never rotate</text>
+
+<text x="710" y="310" font-size="17" font-weight="600" fill="#111">Backoff 8s · retry same sessid</text>
+<text x="710" y="334" font-size="13" fill="#555">fresh sessid would grab another thread</text>
+
+<text x="710" y="440" font-size="17" font-weight="600" fill="#D43D2A">Stop · surface error</text>
+<text x="710" y="464" font-size="13" fill="#555">clear session, fail fast</text>
+
+<text x="710" y="570" font-size="17" font-weight="600" fill="#2A7FBE">Return partial data · skip Maps</text>
+<text x="710" y="594" font-size="13" fill="#555">RUN_TIMEOUT_S=600</text>
+</g>
+
+<g stroke-width="4" fill="none" stroke-linecap="round">
+<path d="M450 185 L682 185" stroke="#E67E22"/><path d="M672 177 L684 185 L672 193" stroke="#E67E22"/>
+<path d="M450 315 L682 315" stroke="#E67E22"/><path d="M672 307 L684 315 L672 323" stroke="#E67E22"/>
+<path d="M450 445 L682 445" stroke="#D43D2A"/><path d="M672 437 L684 445 L672 453" stroke="#D43D2A"/>
+<path d="M450 575 L682 575" stroke="#2A7FBE"/><path d="M672 567 L684 575 L672 583" stroke="#2A7FBE"/>
+</g>
+
+<g>
+<ellipse cx="850" cy="100" rx="26" ry="30" fill="#111"/>
+<circle cx="842" cy="92" r="5" fill="#fff"/>
+<circle cx="858" cy="92" r="5" fill="#fff"/>
+<path d="M842 130 L837 148 M858 130 L863 148" stroke="#111" stroke-width="4" stroke-linecap="round"/>
+<path d="M874 105 L894 120" stroke="#111" stroke-width="4" stroke-linecap="round"/>
+<path d="M894 120 L916 128" stroke="#111" stroke-width="3" stroke-linecap="round"/>
+<circle cx="922" cy="130" r="8" fill="none" stroke="#111" stroke-width="3"/>
+</g>
+<text x="850" y="45" text-anchor="middle" font-size="15" fill="#2A7FBE">one retry</text>
+
+<text x="90" y="660" font-size="14" fill="#666">classified in scraper/runner.py:409–471 · never rotate on quota errors</text>
+</svg>

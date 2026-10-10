@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="'Segoe UI',Arial,sans-serif">
+<title>Fig 3 — Session lifecycle</title>
+<rect width="1280" height="720" fill="#fff"/>
+
+<g fill="none" stroke="#111" stroke-width="2.5">
+<rect x="100" y="150" width="300" height="90" rx="12"/>
+<rect x="520" y="150" width="250" height="90" rx="12"/>
+<rect x="890" y="150" width="270" height="90" rx="12"/>
+<rect x="890" y="430" width="270" height="90" rx="12"/>
+</g>
+
+<g stroke="#E67E22" stroke-width="4" fill="none" stroke-linecap="round">
+<path d="M400 195 L510 195"/><path d="M500 187 L512 195 L500 203"/>
+<path d="M770 195 L880 195"/><path d="M870 187 L882 195 L870 203"/>
+</g>
+
+<path d="M1025 240 L1025 330" stroke="#111" stroke-width="2.5" fill="none"/>
+
+<g stroke="#E67E22" stroke-width="4" fill="none" stroke-linecap="round">
+<path d="M1025 330 L645 330 L645 252"/>
+<path d="M637 262 L645 250 L653 262"/>
+</g>
+
+<g stroke="#E67E22" stroke-width="4" fill="none" stroke-linecap="round">
+<path d="M1025 330 L1025 418"/>
+<path d="M1017 408 L1025 420 L1033 408"/>
+</g>
+
+<g stroke="#2A7FBE" stroke-width="3" fill="none" stroke-linecap="round">
+<path d="M890 475 L250 475 L250 252"/>
+<path d="M242 262 L250 250 L258 262"/>
+</g>
+
+<g text-anchor="middle">
+<text x="250" y="190" font-size="20" font-weight="600" fill="#111">Session store</text>
+<text x="250" y="218" font-size="12" fill="#555" font-family="Consolas,'Courier New',monospace">.sessions/&lt;hl-gl&gt;.state.json</text>
+
+<text x="645" y="190" font-size="20" font-weight="600" fill="#111">Run queries</text>
+<text x="645" y="218" font-size="13" fill="#555">pace 8s · TTL 1500s</text>
+
+<text x="1025" y="190" font-size="20" font-weight="600" fill="#111">Exit-IP check</text>
+<text x="1025" y="218" font-size="13" fill="#555">through session's own proxy</text>
+
+<text x="1025" y="470" font-size="20" font-weight="600" fill="#111">Rotate</text>
+<text x="1025" y="498" font-size="13" fill="#555">new sessid + warmup</text>
+</g>
+
+<text x="456" y="186" text-anchor="middle" font-size="13" fill="#111">load</text>
+<text x="826" y="186" text-anchor="middle" font-size="13" fill="#111">run</text>
+<text x="1013" y="298" text-anchor="end" font-size="13" fill="#111">same IP?</text>
+<text x="835" y="318" text-anchor="middle" font-size="13" fill="#111">reuse ≤25 min</text>
+<text x="1038" y="392" font-size="13" fill="#D43D2A">IP changed</text>
+<text x="560" y="463" text-anchor="middle" font-size="13" fill="#2A7FBE">persist state</text>
+
+<g>
+<ellipse cx="1090" cy="300" rx="24" ry="28" fill="#111"/>
+<circle cx="1082" cy="292" r="5" fill="#fff"/>
+<circle cx="1098" cy="292" r="5" fill="#fff"/>
+<path d="M1082 328 L1077 352 M1098 328 L1103 352" stroke="#111" stroke-width="4" stroke-linecap="round"/>
+<path d="M1070 305 L1052 318" stroke="#111" stroke-width="4" stroke-linecap="round"/>
+<circle cx="1042" cy="326" r="14" fill="none" stroke="#111" stroke-width="4"/>
+<path d="M1032 336 L1022 346" stroke="#111" stroke-width="4" stroke-linecap="round"/>
+</g>
+<text x="1090" y="255" text-anchor="middle" font-size="15" fill="#2A7FBE">verify</text>
+
+<text x="100" y="640" font-size="14" fill="#666">SESSION_REUSE=1 · rotate on silent peer swap · SESSION_IP_CHECK=1</text>
+</svg>
