@@ -117,6 +117,7 @@ function renderSessionPill(s) {
 }
 
 async function loadSession() {
+  if (running) return;
   try {
     const p = presets[$("preset").value] || {};
     const key = p.hl && p.gl ? `${p.hl}-${p.gl}` : "";
@@ -237,13 +238,27 @@ function renderAll(d) {
   tabsEl.hidden = false;
 
   const org = d.organic || [];
+  const rel = d.related_searches || [];
   $("cOrganic").textContent = org.length ? `(${org.length})` : "";
   $("pagesNote").textContent = `${d.pages_fetched ?? 0} pages, has_next=${d.has_next}`;
-  $("organicTable").querySelector("tbody").innerHTML = org.map((r) => `
+  const byPage = new Map();
+  org.forEach((r) => {
+    const p = r.page || 1;
+    if (!byPage.has(p)) byPage.set(p, []);
+    byPage.get(p).push(r);
+  });
+  const orgRows = [];
+  for (const [pageNo, items] of [...byPage.entries()].sort((a, b) => a[0] - b[0])) {
+    if (byPage.size > 1) {
+      orgRows.push(`<tr class="page-sep"><td colspan="3">${esc(t("pageN", pageNo))} (${items.length})</td></tr>`);
+    }
+    orgRows.push(...items.map((r) => `
     <tr><td class="pos">${r.position}</td>
     <td><a href="${esc(r.link)}" target="_blank" rel="noopener">${esc(r.title)}</a>
       <br /><span class="snip">${esc(r.link)}</span></td>
-    <td class="snip">${esc(r.snippet)}</td></tr>`).join("")
+    <td class="snip">${esc(r.snippet)}</td></tr>`));
+  }
+  $("organicTable").querySelector("tbody").innerHTML = orgRows.join("")
     || `<tr><td colspan="3" class="empty">${esc(t("emptyOrganic"))}</td></tr>`;
 
   const paa = d.related_questions || [];
@@ -260,7 +275,7 @@ function renderAll(d) {
       + (ai.links || []).map((l) => `<div><a href="${esc(l.link)}" target="_blank" rel="noopener">${esc(l.title || l.link)}</a></div>`).join("")
     : `<p class="empty">${esc(t("emptyAi"))}</p>`;
 
-  $("relChips").innerHTML = (d.related_searches || []).map((s) => `<span>${esc(s)}</span>`).join("")
+  $("relChips").innerHTML = rel.map((s) => `<span>${esc(s)}</span>`).join("")
     || `<p class="empty">${esc(t("emptyRelated"))}</p>`;
 
   const lr = d.local_results || [];
@@ -294,6 +309,32 @@ function renderAll(d) {
     `total ${tm.total_ms ?? "-"}ms, search ${tm.search_ms ?? "-"}ms, autocomplete ${tm.autocomplete_ms ?? "-"}ms, maps ${tm.maps_ms ?? "-"}ms` +
     (solves.length ? `, ${t("solvesLabel", solvedN)}` : "") +
     (d.mock ? ", MOCK" : "");
+
+  const heads = tm.heads || {};
+  const dupes = tm.dupes_dropped || 0;
+  const headChip = (label, on) =>
+    `<span class="schip ${on ? "" : "off"}">${esc(label)} ${esc(on ? t("served") : t("absent"))}</span>`;
+  const chips = [
+    `${org.length} ${t("tabOrganic")}`,
+    ...(d.pages_fetched > 1 ? [t("sumPages", d.pages_fetched)] : []),
+    ...(rel.length ? [`${rel.length} ${t("tabRelated")}`] : []),
+    ...(paa.length ? [`${paa.length} ${t("tabPaa")}`] : []),
+    ...(ai ? [ai.source === "ai_mode" ? "AI Mode" : t("tabAi")] : []),
+    ...(lr.length ? [`${lr.length} ${t("sumLocal")}`] : []),
+    ...(maps.length ? [`${maps.length} ${t("tabMaps")}`] : []),
+    ...(solves.length ? [t("solvesLabel", solvedN)] : []),
+    ...(dupes ? [t("dupes", dupes)] : []),
+  ];
+  const headChips = Object.keys(heads).length
+    ? headChip(t("tabPaa"), !!heads.paa) +
+      headChip("PASF", !!heads.pasf) +
+      headChip(t("tabRelated"), !!heads.related)
+    : "";
+  $("summaryBar").innerHTML =
+    chips.map((c) => `<span class="schip">${esc(c)}</span>`).join("") +
+    headChips +
+    (tm.web_fallback ? `<span class="schip warn">${esc(t("webFallback"))}</span>` : "");
+  $("summaryBar").hidden = false;
   $("rawPre").textContent = JSON.stringify(d, null, 2);
 
   const errs = d.errors || [];
@@ -360,6 +401,7 @@ form.addEventListener("submit", async (e) => {
   running = true;
   setFormDisabled(true);
   setStatus("", esc(t("stRunning", submittedQuery)));
+  $("summaryBar").hidden = true;
   if (isMock) {
     $("progressCard").hidden = true;
   } else {

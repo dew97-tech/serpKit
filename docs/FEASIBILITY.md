@@ -10,7 +10,7 @@ with the reliability caveats below.
 
 | Block | Technique | Reliability |
 |---|---|---|
-| organic top-30 (pages 1–3, `start=0,10,20`) | Playwright, one context, `#search a:has(h3)` structure selectors | High — classic block, stable anchors |
+| organic top-30 (pages 1–3, `start=0,10,20`) | Playwright, one context, `#search a:has(h3)` structure selectors; duplicate URLs dropped across pages, off-query pages ignored (`page_off_query`) | High — classic block, stable anchors |
 | `related_searches` (page-1 bottom) and People also search for (mid-page) | Rendered HTML headings + container chip links, merged and deduped; availability is layout and session dependent and self-reported in `timing_ms.heads` | High when served |
 | PAA questions | Static HTML (`data-q` / accordion roles) | High for questions |
 | PAA answers + source links | Click-expand first ≤6 accordions, 800–1600ms jitter, re-read DOM; inline Google errors retried once, kept honest (empty snippet) | Medium — each click is extra traffic; cap depth 2 |

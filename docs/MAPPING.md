@@ -5,7 +5,7 @@ collector without rewrites.
 
 | Scraped block | Contract field | Consumer in seo_api |
 |---|---|---|
-| organic top-30 (pages 1–3) | `organic[{position,title,link,snippet}]` | keyword acquisition competitor URLs; article prompt `competitor_urls`; backlink prospecting (pages 1–3) |
+| organic top-30 (pages 1–3) | `organic[{position,title,link,snippet,page}]` grouped by SERP page; duplicates dropped across pages; off-query pages ignored | keyword acquisition competitor URLs; article prompt `competitor_urls`; backlink prospecting (pages 1–3) |
 | related searches (page-1 bottom) and People also search for | `related_searches[]` (merged, deduped) | article prompt var `related_searches` |
 | PAA / related_questions | `related_questions[{question,snippet,link}]` | `RetrieveKeywordAdditionalDataCommand.related_questions_data`; article prompt `related_questions` |
 | AI Overview / AI Mode | `ai_overview{text_blocks,links[,source]}` or `None` (kept only when `text_blocks` non-empty). Classic overviews carry cited `links[]`; when Google serves the AI Mode panel instead, its reply is captured with `source: "ai_mode"` (additive key; links are Google-internal and stay empty) | `RetrieveKeywordAdditionalDataCommand.ai_overview_data` |

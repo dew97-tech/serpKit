@@ -50,11 +50,16 @@ UI_DIR = BASE_DIR / "ui"
 
 @app.middleware("http")
 async def no_cache_ui(request, call_next):
-    """UI assets are never cached so code updates always take effect."""
+    """index.html is never cached; versioned static assets cache long."""
     response = await call_next(request)
     path = request.url.path
-    if path == "/" or path.startswith("/static/"):
+    if path == "/" or path == "/index.html":
         response.headers["Cache-Control"] = "no-store"
+    elif path.startswith("/static/"):
+        response.headers.setdefault(
+            "Cache-Control", "public, max-age=86400, immutable")
+    if path.startswith("/api/"):
+        response.headers.setdefault("X-Robots-Tag", "noindex, nofollow")
     return response
 
 
@@ -348,6 +353,20 @@ async def scrape_stream(
 
 if UI_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(UI_DIR)), name="static")
+
+    for _fname, _media in (("favicon.svg", "image/svg+xml"),
+                           ("favicon-32x32.png", "image/png"),
+                           ("apple-touch-icon.png", "image/png"),
+                           ("site.webmanifest", "application/manifest+json"),
+                           ("og.png", "image/png")):
+        _p = UI_DIR / _fname
+
+        def _make_file_response(path=_p, media=_media):
+            def _serve():
+                return FileResponse(str(path), media_type=media)
+            return _serve
+
+        app.get(f"/{_fname}", include_in_schema=False)(_make_file_response())
 
     @app.get("/", include_in_schema=False)
     def index() -> FileResponse:

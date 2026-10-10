@@ -766,6 +766,10 @@ def parse_local_pack(html: str) -> tuple[dict | None, list[dict]]:
                 value = line.get_text(" ", strip=True)
                 if not value or "·" in value or value in ("Sponsored", "スポンサー"):
                     continue
+                if re.match(r"^\d+\+?\s*years?\b", value, re.I):
+                    continue
+                if re.match(r"^(Open|Closed|Opens|Closes)\b", value):
+                    continue
                 address = value
                 break
         results.append({
@@ -961,6 +965,20 @@ def organic_off_query(query: str, organic: list[dict]) -> bool:
     return any(token not in haystack for token in tokens)
 
 
+def _merge_organic(items: list[dict], page: int, seen: set,
+                   out: list[dict]) -> int:
+    added = 0
+    for item in items:
+        link = str(item.get("link", ""))
+        if not link or link in seen:
+            continue
+        seen.add(link)
+        item["page"] = page
+        out.append(item)
+        added += 1
+    return added
+
+
 def _collect_web_fallback(
     context: BrowserContext,
     web_params: SearchParams,
@@ -974,14 +992,15 @@ def _collect_web_fallback(
     organic: list[dict] = []
     related: list[str] = []
     questions: list[dict] = []
+    seen: set[str] = set()
     has_next = False
     fetched = 0
     for i in range(pages):
         html, _ = fetch_search_page(context, web_params, i * 10, policy,
                                     on_progress=on_progress, deadline=deadline)
         fetched += 1
-        organic.extend(parse_organic(html, base_position=len(organic),
-                                     link_resolver=resolver))
+        _merge_organic(parse_organic(html, link_resolver=resolver),
+                       i + 1, seen, organic)
         if i == 0:
             related = parse_related_searches(html)
             questions = parse_paa(html)
@@ -1192,6 +1211,8 @@ def collect_search(
                 return resolve_goto_link(context, params.google_domain, href)
 
             pages_stage_used = False
+            organic_seen: set[str] = set()
+            dupes_dropped = 0
             for i in range(pages):
                 start = i * 10
                 try:
@@ -1217,8 +1238,20 @@ def collect_search(
                                                        on_progress=on_progress,
                                                        deadline=deadline)
                     pages_fetched += 1
-                    organic.extend(parse_organic(html, base_position=len(organic),
-                                                 link_resolver=resolver))
+                    page_items = parse_organic(html, link_resolver=resolver)
+                    if (i > 0 and page_items and not params.web_mode
+                            and organic_off_query(params.q, page_items)):
+                        errors.append({
+                            "code": "page_off_query",
+                            "message": (f"page {i + 1} returned off-query "
+                                        "results; ignored."),
+                        })
+                        emit_progress(on_progress, "note", "note",
+                                      f"Page {i + 1} results ignored (off-query)")
+                        break
+                    dupes_dropped += (len(page_items)
+                                      - _merge_organic(page_items, i + 1,
+                                                       organic_seen, organic))
                     if i == 0:
                         emit_progress(on_progress, "organic", "done",
                                       f"{len(organic)} results")
@@ -1262,7 +1295,7 @@ def collect_search(
                             errors.append({"code": "web_fallback_error",
                                            "message": str(e)[:200]})
                         break
-                    if not organic and i == 0:
+                    if not page_items and i == 0:
                         if "/search" in page_url:
                             _dump_html(html, page_url, start, force=True)
                         errors.append({"code": "zero_result",
@@ -1305,8 +1338,12 @@ def collect_search(
                 except Exception:
                     pass
 
+    organic = organic[:30]
+    for idx, item in enumerate(organic, 1):
+        item["position"] = idx
+
     return {
-        "organic": organic[:30],
+        "organic": organic,
         "related_searches": related_searches,
         "related_questions": related_questions,
         "ai_overview": ai_overview,
@@ -1322,5 +1359,6 @@ def collect_search(
         "midrun_ip_changed": midrun_ip_changed,
         "timing_ms": {"search_ms": int((time.time() - started) * 1000),
                       "web_fallback": web_fallback_used,
-                      "heads": module_heads},
+                      "heads": module_heads,
+                      "dupes_dropped": dupes_dropped},
     }

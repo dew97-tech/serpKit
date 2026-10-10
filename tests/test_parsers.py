@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from scraper.maps import parse_maps_cards  # noqa: E402
 from scraper.serp import (  # noqa: E402
+    _merge_organic,
     _merged_chips,
     cite_to_url,
     detect_module_heads,
@@ -83,6 +84,17 @@ LOCAL_PACK_HTML = """
 """
 
 
+LOCAL_PACK_AGE_HTML = """
+<html><body><div id="search">
+  <div class="VkpGBb"><div class="rllt__details">
+    <div role="heading" aria-level="3"><span class="OSrXXb">Next Call</span></div>
+    <div><span aria-label="Rated 5.0 out of 5, 159 user reviews" role="img"><span>5.0</span></span></div>
+    <div>5+ years in business</div>
+  </div></div>
+</div></body></html>
+"""
+
+
 class TestLocalPack(unittest.TestCase):
     def test_card_fields(self):
         local_map, results = parse_local_pack(LOCAL_PACK_HTML)
@@ -93,6 +105,11 @@ class TestLocalPack(unittest.TestCase):
         self.assertEqual(card["address"], "Manhattan, NY")
         self.assertEqual(card["rating"], 4.8)
         self.assertEqual(card["reviews"], 1700)
+
+    def test_age_line_not_address(self):
+        _, results = parse_local_pack(LOCAL_PACK_AGE_HTML)
+        self.assertEqual(results[0]["title"], "Next Call")
+        self.assertEqual(results[0]["address"], "")
 
     def test_absent_pack(self):
         local_map, results = parse_local_pack("<html><body>nothing</body></html>")
@@ -368,6 +385,18 @@ class TestModuleHeads(unittest.TestCase):
     def test_empty(self):
         heads = detect_module_heads("<html>nothing here</html>")
         self.assertEqual(heads, {"paa": False, "pasf": False, "related": False})
+
+
+class TestOrganicMerge(unittest.TestCase):
+    def test_dedupe_and_page_tag(self):
+        out, seen = [], set()
+        added1 = _merge_organic([{"link": "a"}, {"link": "a"}, {"link": "b"}],
+                                1, seen, out)
+        self.assertEqual(added1, 2)
+        added2 = _merge_organic([{"link": "b"}, {"link": "c"}], 2, seen, out)
+        self.assertEqual(added2, 1)
+        self.assertEqual([i["link"] for i in out], ["a", "b", "c"])
+        self.assertEqual([i["page"] for i in out], [1, 1, 2])
 
 
 if __name__ == "__main__":

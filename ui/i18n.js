@@ -4,7 +4,8 @@
 
 const STRINGS = {
   en: {
-    docTitle: "SERP KIT",
+    docTitle: "SERP KIT — Google SERP collection and inspection",
+    metaDescription: "SERP KIT collects Google organic, PAA, AI Overview, local pack, Maps and autocomplete blocks into one inspection viewer and JSON contract.",
     sub: "Google SERP collection and inspection",
     preset: "Preset",
     keyword: "Keyword",
@@ -47,6 +48,13 @@ const STRINGS = {
     tabMaps: "Maps",
     tabAuto: "Suggest",
     tabRaw: "Raw JSON",
+    sumPages: (n) => `${n} pages`,
+    sumLocal: "Local",
+    served: "served",
+    absent: "absent",
+    webFallback: "web fallback",
+    pageN: (n) => `Page ${n}`,
+    dupes: (n) => `${n} duplicates dropped`,
     hOrganic: "Organic results",
     hPaa: "People Also Ask",
     hAi: "AI Overview",
@@ -86,7 +94,8 @@ const STRINGS = {
     },
   },
   ja: {
-    docTitle: "SERP KIT",
+    docTitle: "SERP KIT — Google SERP の収集と確認",
+    metaDescription: "SERP KIT は Google のオーガニック・PAA・AI Overview・ローカル・Maps・サジェストを収集する検査ビューアです。",
     sub: "Google SERP の収集と確認",
     preset: "プリセット",
     keyword: "キーワード",
@@ -129,6 +138,13 @@ const STRINGS = {
     tabMaps: "Maps",
     tabAuto: "サジェスト",
     tabRaw: "Raw JSON",
+    sumPages: (n) => `${n} ページ`,
+    sumLocal: "ローカル",
+    served: "あり",
+    absent: "なし",
+    webFallback: "Web フォールバック",
+    pageN: (n) => `ページ ${n}`,
+    dupes: (n) => `重複 ${n} 件を除外`,
     hOrganic: "オーガニック結果",
     hPaa: "People Also Ask",
     hAi: "AI Overview",
@@ -183,6 +199,8 @@ function setLang(lang) {
   localStorage.setItem("serp-ui-lang", lang);
   document.documentElement.lang = lang === "ja" ? "ja" : "en";
   document.title = t("docTitle");
+  const meta = document.querySelector('meta[name="description"]');
+  if (meta) meta.setAttribute("content", t("metaDescription"));
   document.querySelectorAll("[data-i18n]").forEach((el) => {
     el.innerHTML = t(el.getAttribute("data-i18n"));
   });
